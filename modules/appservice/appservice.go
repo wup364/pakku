@@ -30,8 +30,8 @@ func (service *AppService) AsModule() ipakku.Opts {
 			if nil != service.RPCService.AsModule().OnReady {
 				service.RPCService.AsModule().OnReady(mctx)
 			}
-			service.HTTPService.SetDebug(mctx.GetParam("appService.debug").ToBool(true))
-			service.RPCService.SetDebug(mctx.GetParam("appService.debug").ToBool(true))
+			service.HTTPService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
+			service.RPCService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
 		},
 		OnSetup:  func() {},
 		OnUpdate: func(cv float64) {},
