@@ -63,6 +63,18 @@ func TestNewApplication1(t *testing.T) {
 type test4Controller struct {
 	//  自动注入AppService接口
 	svr ipakku.AppService `@autowired:"AppService"`
+	// 自动完成配置
+	configs *tcConfig `@autoConfig:"test"`
+}
+
+type tcConfig struct {
+	value7 float64  `@value:""`
+	value6 float64  `@value:":-1"`
+	value5 float64  `@value:"value-float:-1"`
+	value4 []int64  `@value:"value-nums"`
+	value3 []string `@value:"value-strs"`
+	value2 string   `@value:"value-str"`
+	value1 int64    `@value:"value-int:-1"`
 }
 
 // AsModule 作为一个模块加载
@@ -71,6 +83,7 @@ func (t *test4Controller) AsModule() ipakku.Opts {
 		Name:    "Test4Controller",
 		Version: 1.0,
 		OnInit: func() {
+			logs.Infof("config: %v \r\n", t.configs)
 			if err := t.svr.AsController(t); nil != err {
 				logs.Panicln(err)
 			}
@@ -93,5 +106,12 @@ func (ctl *test4Controller) AsController() ipakku.ControllerConfig {
 
 // Hello Hello
 func (t *test4Controller) Hello(w http.ResponseWriter, _ *http.Request) {
+	logs.Infoln(t.configs.value7)
+	logs.Infoln(t.configs.value6)
+	logs.Infoln(t.configs.value5)
+	logs.Infoln(t.configs.value4)
+	logs.Infoln(t.configs.value3)
+	logs.Infoln(t.configs.value2)
+	logs.Infoln(t.configs.value1)
 	w.Write([]byte("Test4Controller -> Hello"))
 }

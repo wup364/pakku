@@ -6,6 +6,7 @@ import (
 	"github.com/wup364/pakku/utils/utypes"
 
 	// 通过 init 函数注册
+	"github.com/wup364/pakku/modules/appconfig/confutils"
 	_ "github.com/wup364/pakku/modules/appconfig/jsonconfig"
 )
 
@@ -13,6 +14,7 @@ import (
 type AppConfig struct {
 	configname string
 	config     ipakku.IConfig
+	autoValue  *confutils.AutoValueOfBeanUtil
 }
 
 // AsModule 作为一个模块加载
@@ -27,11 +29,16 @@ func (conf *AppConfig) AsModule() ipakku.Opts {
 				logs.Panicln(err)
 			}
 			conf.configname = mctx.GetParam(ipakku.PARAMKEY_APPNAME).ToString("app")
+			conf.autoValue = confutils.NewAutoValueOfBeanUtil(conf.config)
+
+			// 注册监听 - 自动完成配置类的配置
+			mctx.OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, loader ipakku.Loader) {
+				if err := conf.AutoValueOfBean(module); nil != err {
+					logs.Panicln(err)
+				}
+			})
 		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
 		OnInit: func() {
-			// 初始化配置
 			conf.config.Init(conf.configname)
 		},
 	}
@@ -45,4 +52,9 @@ func (conf *AppConfig) GetConfig(key string) (res utypes.Object) {
 // SetConfig 保存配置, key value 都为stirng
 func (conf *AppConfig) SetConfig(key string, value string) error {
 	return conf.config.SetConfig(key, value)
+}
+
+// AutoValueOfBean 根据bean描述自动完成字段值
+func (conf *AppConfig) AutoValueOfBean(ptr interface{}) (err error) {
+	return conf.autoValue.AutoValueOfBean(ptr)
 }

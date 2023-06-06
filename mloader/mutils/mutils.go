@@ -22,7 +22,7 @@ import (
 // AutoWired 自动注入依赖
 func AutoWired(ptr interface{}, l ipakku.Loader) (err error) {
 	var tagvals = make(map[string]string)
-	if tagvals, err = reflectutil.GetTagValues("@autowired", ptr); nil == err && len(tagvals) > 0 {
+	if tagvals, err = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOWIRED, ptr); nil == err && len(tagvals) > 0 {
 		// 仅支持指针类型结构体
 		if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 			return errors.New("only pointer objects are supported")

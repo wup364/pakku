@@ -66,18 +66,24 @@ func (loader *Loader) Load(mt ipakku.Module) {
 	logs.Infof("> Loading %s start \r\n", mt.AsModule().Name)
 	// doready 模块准备开始加载
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnReady)
+	loader.doReady(mt)
+
 	// doSetup 模块安装
 	if len(loader.GetVersion(mt.AsModule().Name)) == 0 {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnSetup)
-		loader.setVersion(mt.AsModule())
+		loader.doSetup(mt)
 	}
+
 	// doCheckVersion 模块升级
 	if loader.GetVersion(mt.AsModule().Name) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnUpdate)
-		loader.setVersion(mt.AsModule())
+		loader.doUpdate(mt)
 	}
+
 	// doInit 模块初始化
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnInit)
+	loader.doInit(mt)
+
 	// doEnd 模块加载结束
 	loader.modules.Put(mt.AsModule().Name, mt)
 	logs.Infof("> Loading %s complete \r\n", mt.AsModule().Name)
@@ -180,5 +186,43 @@ func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleE
 		for i := 0; i < len(events); i++ {
 			events[i](mt, loader)
 		}
+	}
+}
+
+// doReady 模块准备
+func (loader *Loader) doReady(m ipakku.Module) {
+	if nil != m.AsModule().OnReady {
+		logs.Infof("> Execute Module.OnReady \r\n")
+		m.AsModule().OnReady(loader)
+	}
+}
+
+// doSetup 模块安装
+func (loader *Loader) doSetup(m ipakku.Module) {
+	if nil != m.AsModule().OnSetup {
+		logs.Infof("> Execute Module.OnSetup \r\n")
+		m.AsModule().OnSetup()
+		loader.setVersion(m.AsModule())
+	}
+}
+
+// doUpdate 模块升级
+func (loader *Loader) doUpdate(m ipakku.Module) {
+	if nil != m.AsModule().OnUpdate {
+		logs.Infof("> Execute Module.OnUpdate \r\n")
+		if hv, err := strconv.ParseFloat(loader.GetVersion(m.AsModule().Name), 64); nil != err {
+			logs.Panicln(err)
+		} else {
+			m.AsModule().OnUpdate(hv)
+			loader.setVersion(m.AsModule())
+		}
+	}
+}
+
+// doInit 模块初始化
+func (loader *Loader) doInit(m ipakku.Module) {
+	if nil != m.AsModule().OnInit {
+		logs.Infof("> Execute Module.OnInit \r\n")
+		m.AsModule().OnInit()
 	}
 }

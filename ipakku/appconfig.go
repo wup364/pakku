@@ -19,4 +19,7 @@ type AppConfig interface {
 
 	// SetConfig 保存配置, key value 都为stirng
 	SetConfig(key string, value string) error
+
+	// AutoValueOfBean 根据bean描述自动完成字段值
+	AutoValueOfBean(ptr interface{}) (err error)
 }

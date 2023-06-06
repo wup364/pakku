@@ -107,20 +107,20 @@ func (config *Config) GetConfig(key string) (res utypes.Object) {
 		}
 
 		//
-		var _temp interface{}
+		var temp2 interface{}
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			}
 		} else { //
 			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			}
 		}
 
 		// find
-		if _temp != nil {
-			temp = _temp
+		if temp2 != nil {
+			temp = temp2
 		} else {
 			return
 		}
@@ -189,16 +189,9 @@ func (config *Config) readFileAsJSON(path string, v interface{}) error {
 	}()
 
 	if err == nil {
-		st, stErr := fp.Stat()
-		if stErr == nil {
-			data := make([]byte, st.Size())
-			_, err = fp.Read(data)
-			if err == nil {
-				return json.Unmarshal(data, v)
-			}
-		} else {
-			err = stErr
-		}
+		decoder := json.NewDecoder(fp)
+		decoder.UseNumber()
+		return decoder.Decode(v)
 	}
 	return err
 }
