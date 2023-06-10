@@ -149,6 +149,9 @@ func (service *HTTPService) Filter(url string, fun ipakku.FilterFunc) error {
 // SetStaticDIR SetStaticDIR
 func (service *HTTPService) SetStaticDIR(path, dir string, fun ipakku.FilterFunc) (err error) {
 	return service.http.SetStaticDIR(path, dir, func(rw http.ResponseWriter, r *http.Request) bool {
+		if nil == fun {
+			return true
+		}
 		return fun(rw, r)
 	})
 }
@@ -156,6 +159,9 @@ func (service *HTTPService) SetStaticDIR(path, dir string, fun ipakku.FilterFunc
 // SetStaticFile SetStaticFile
 func (service *HTTPService) SetStaticFile(path, file string, fun ipakku.FilterFunc) error {
 	return service.http.SetStaticFile(path, file, func(rw http.ResponseWriter, r *http.Request) bool {
+		if nil == fun {
+			return true
+		}
 		return fun(rw, r)
 	})
 }

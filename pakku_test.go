@@ -14,7 +14,6 @@ package pakku
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/wup364/pakku/ipakku"
@@ -32,14 +31,17 @@ func TestNewApplication(t *testing.T) {
 		logs.Panicln(err)
 	}
 
-	// 手工注册一个请求路径(可使用Controller接口批量注册)
-	service.SetStaticDIR("/", os.TempDir(), func(rw http.ResponseWriter, r *http.Request) bool {
-		return true
-	})
+	// 设置一个静态页面路径
+	if err := service.SetStaticDIR("/", "./", nil); nil != err {
+		logs.Panicln(err)
+	}
 
-	service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
+	// 手工注册一个请求路径(可使用Controller接口批量注册)
+	if err := service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte("hello!"))
-	})
+	}); nil != err {
+		logs.Panicln(err)
+	}
 
 	// 启动服务
 	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
