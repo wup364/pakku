@@ -22,7 +22,7 @@ func (service *AppService) AsModule() ipakku.Opts {
 	return ipakku.Opts{
 		Name:        "AppService",
 		Version:     1.0,
-		Description: "",
+		Description: "AppService module",
 		OnReady: func(mctx ipakku.Loader) {
 			if nil != service.HTTPService.AsModule().OnReady {
 				service.HTTPService.AsModule().OnReady(mctx)
@@ -32,10 +32,6 @@ func (service *AppService) AsModule() ipakku.Opts {
 			}
 			service.HTTPService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
 			service.RPCService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
-		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
-		OnInit: func() {
 		},
 	}
 }

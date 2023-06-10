@@ -12,6 +12,7 @@
 package pakku
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -24,18 +25,22 @@ import (
 func TestNewApplication(t *testing.T) {
 	// 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
 	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().SetLoggerLevel(logs.DEBUG).BootStart()
+
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 	var service ipakku.AppService
 	if err := app.GetModuleByName("AppService", &service); nil != err {
 		logs.Panicln(err)
 	}
+
 	// 手工注册一个请求路径(可使用Controller接口批量注册)
 	service.SetStaticDIR("/", os.TempDir(), func(rw http.ResponseWriter, r *http.Request) bool {
 		return true
 	})
+
 	service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte("hello!"))
 	})
+
 	// 启动服务
 	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
 	// service.StartHTTP(ipakku.HTTPServiceConfig{
@@ -48,13 +53,30 @@ func TestNewApplication(t *testing.T) {
 
 // TestNewApplication1 加载自定义的模块, 创建一个http服务
 func TestNewApplication1(t *testing.T) {
-	// 在 TestNewApplication 示例的基础上, 新加载了一个test4Controller模块
-	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().AddModules(new(test4Controller)).SetLoggerLevel(logs.DEBUG).BootStart()
+	// 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
+	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().SetLoggerLevel(logs.DEBUG).BootStart()
+
+	// 获取内部的一个模块, 这里使用 AppConfig 设置一些测试数据
+	var config ipakku.AppConfig
+	if err := app.GetModuleByName("AppConfig", &config); nil != err {
+		logs.Panicln(err)
+	} else {
+		checkError(config.SetConfig("test.value-str", "str"))
+		checkError(config.SetConfig("test.value-int", "-1024"))
+		checkError(config.SetConfig("test.value-float", "-1024.1024"))
+		checkError(config.SetConfig("test.value-strs", []string{"str1", "str2"}))
+		checkError(config.SetConfig("test.value-nums", []int64{1204, -1024}))
+	}
+
+	// 在 TestNewApplication 示例的基础上, 动态新加载了一个test4Controller模块
+	app.LoadModules(new(test4Controller))
+
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 	var service ipakku.AppService
 	if err := app.GetModuleByName("AppService", &service); nil != err {
 		logs.Panicln(err)
 	}
+
 	// 启动服务
 	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
 }
@@ -83,7 +105,14 @@ func (t *test4Controller) AsModule() ipakku.Opts {
 		Name:    "Test4Controller",
 		Version: 1.0,
 		OnInit: func() {
-			logs.Infof("config: %v \r\n", t.configs)
+			logs.Infof("value7: %v", t.configs.value7)
+			logs.Infof("value6: %v", t.configs.value6)
+			logs.Infof("value5: %v", t.configs.value5)
+			logs.Infof("value4: %v", t.configs.value4)
+			logs.Infof("value3: %v", t.configs.value3)
+			logs.Infof("value2: %v", t.configs.value2)
+			logs.Infof("value1: %v", t.configs.value1)
+			// 注册一个control
 			if err := t.svr.AsController(t); nil != err {
 				logs.Panicln(err)
 			}
@@ -106,12 +135,11 @@ func (ctl *test4Controller) AsController() ipakku.ControllerConfig {
 
 // Hello Hello
 func (t *test4Controller) Hello(w http.ResponseWriter, _ *http.Request) {
-	logs.Infoln(t.configs.value7)
-	logs.Infoln(t.configs.value6)
-	logs.Infoln(t.configs.value5)
-	logs.Infoln(t.configs.value4)
-	logs.Infoln(t.configs.value3)
-	logs.Infoln(t.configs.value2)
-	logs.Infoln(t.configs.value1)
-	w.Write([]byte("Test4Controller -> Hello"))
+	w.Write([]byte(fmt.Sprintf("Test4Controller -> Hello, conf=%v", t.configs)))
+}
+
+func checkError(err error) {
+	if nil != err {
+		panic(err)
+	}
 }

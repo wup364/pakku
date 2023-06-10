@@ -131,12 +131,13 @@ func (loader *Loader) GetParam(key string) utypes.Object {
 // OnModuleEvent 监听模块生命周期事件
 func (loader *Loader) OnModuleEvent(name string, event ipakku.ModuleEvent, val ipakku.OnModuleEvent) {
 	var events []ipakku.OnModuleEvent
-	if val, ok := loader.events.Get("ModuleEvent." + name + "." + string(event)); ok {
+	eventKey := loader.getModuleEventKey(name, event)
+	if val, ok := loader.events.Get(eventKey); ok {
 		events = val.([]ipakku.OnModuleEvent)
 	} else {
 		events = make([]ipakku.OnModuleEvent, 0)
 	}
-	loader.events.Put("ModuleEvent."+name+"."+string(event), append(events, val))
+	loader.events.Put(eventKey, append(events, val))
 }
 
 // GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
@@ -172,12 +173,12 @@ func (loader *Loader) setVersion(opts ipakku.Opts) {
 // doHandleModuleEvent 执行监听模块生命周期事件
 func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleEvent) {
 	var events []ipakku.OnModuleEvent
-	if val, ok := loader.events.Get("ModuleEvent.*." + string(event)); ok {
+	if val, ok := loader.events.Get(loader.getModuleEventKey("*", event)); ok {
 		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
 			events = funs
 		}
 	}
-	if val, ok := loader.events.Get("ModuleEvent." + mt.AsModule().Name + "." + string(event)); ok {
+	if val, ok := loader.events.Get(loader.getModuleEventKey(mt.AsModule().Name, event)); ok {
 		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
 			events = append(events, funs...)
 		}
@@ -225,4 +226,9 @@ func (loader *Loader) doInit(m ipakku.Module) {
 		logs.Infof("> Execute Module.OnInit \r\n")
 		m.AsModule().OnInit()
 	}
+}
+
+// getModuleEventKey getModuleEventKey
+func (loader *Loader) getModuleEventKey(name string, event ipakku.ModuleEvent) string {
+	return "ModuleEvent." + name + "." + string(event)
 }

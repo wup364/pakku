@@ -22,7 +22,7 @@ func (conf *AppConfig) AsModule() ipakku.Opts {
 	return ipakku.Opts{
 		Name:        "AppConfig",
 		Version:     1.0,
-		Description: "配置模块",
+		Description: "AppConfig module",
 		OnReady: func(mctx ipakku.Loader) {
 			// 获取配置的适配器, 默认json
 			if err := ipakku.Override.AutowireInterfaceImpl(mctx, &conf.config, "json"); nil != err {
@@ -49,8 +49,8 @@ func (conf *AppConfig) GetConfig(key string) (res utypes.Object) {
 	return conf.config.GetConfig(key)
 }
 
-// SetConfig 保存配置, key value 都为stirng
-func (conf *AppConfig) SetConfig(key string, value string) error {
+// SetConfig 设置值
+func (conf *AppConfig) SetConfig(key string, value interface{}) error {
 	return conf.config.SetConfig(key, value)
 }
 

@@ -128,9 +128,9 @@ func (config *Config) GetConfig(key string) (res utypes.Object) {
 	return
 }
 
-// SetConfig 保存配置, key value 都为stirng
-func (config *Config) SetConfig(key string, value string) error {
-	if len(key) == 0 || len(value) == 0 {
+// SetConfig 保存配置
+func (config *Config) SetConfig(key string, value interface{}) error {
+	if len(key) == 0 || nil == value {
 		return errors.New("key or value is empty")
 	}
 	config.l.Lock()
@@ -151,26 +151,26 @@ func (config *Config) SetConfig(key string, value string) error {
 		}
 
 		//
-		var _temp interface{}
+		var temp1 interface{}
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
-				_temp = tp
+				temp1 = tp
 			} else {
-				_temp = make(map[string]interface{})
-				config.jsonObject[keys[i]] = _temp
+				temp1 = make(map[string]interface{})
+				config.jsonObject[keys[i]] = temp1
 			}
 		} else { //
 			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
-				_temp = tp
+				temp1 = tp
 			} else {
-				_temp = make(map[string]interface{})
-				temp.(map[string]interface{})[keys[i]] = _temp
+				temp1 = make(map[string]interface{})
+				temp.(map[string]interface{})[keys[i]] = temp1
 			}
 		}
 
 		// find
-		if _temp != nil {
-			temp = _temp
+		if temp1 != nil {
+			temp = temp1
 		}
 	}
 	return nil

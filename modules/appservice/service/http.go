@@ -25,10 +25,6 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 			service.mctx = mctx
 			service.http = serviceutil.NewHTTPService()
 		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
-		OnInit: func() {
-		},
 	}
 }
 

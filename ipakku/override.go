@@ -37,10 +37,10 @@ var Override = overrideFuc{
 
 // overrideFuc 重载函数
 type overrideFuc struct {
-	GetImplementByName      func(it_name, im_name, im_name2 string) interface{}
-	RegisterInterfaceImpl   func(val interface{}, it_name, im_name string)
+	GetImplementByName      func(interfaceName, implName, defaultImplName string) interface{}
+	RegisterInterfaceImpl   func(val interface{}, interfaceName, implName string)
 	AutowireInterfaceImpl   func(param paramGet, val interface{}, defaultName string) error
-	SetInterfaceDefaultImpl func(param paramSet, it_name, im_name string)
+	SetInterfaceDefaultImpl func(param paramSet, interfaceName, implName string)
 	SetModuleInfoImpl       func(val ModuleInfo)
 	GetModuleInfoImpl       func() ModuleInfo
 }
@@ -69,30 +69,30 @@ func doGetModuleInfoImpl() ModuleInfo {
 var implements = utypes.NewSafeMap()
 
 // doGetImplementsByInterface 根据接口名字查找所有实现
-func doGetImplementsByInterface(it_name string) *utypes.SafeMap {
-	if val, ok := implements.Get(it_name); ok {
+func doGetImplementsByInterface(interfaceName string) *utypes.SafeMap {
+	if val, ok := implements.Get(interfaceName); ok {
 		return val.(*utypes.SafeMap)
 	} else {
 		newType := utypes.NewSafeMap()
-		implements.Put(it_name, newType)
+		implements.Put(interfaceName, newType)
 		return newType
 	}
 }
 
-// doGetImplementByName 根据接口名字+(实例名字1 || 实例名字2), 获取具体实现对象
-func doGetImplementByName(it_name, im_name, im_name2 string) interface{} {
-	its := doGetImplementsByInterface(it_name)
-	if val, ok := its.Get(im_name); ok {
+// doGetImplementByName 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
+func doGetImplementByName(interfaceName, implName, defaultImplName string) interface{} {
+	its := doGetImplementsByInterface(interfaceName)
+	if val, ok := its.Get(implName); ok {
 		return val
-	} else if val, ok := its.Get(im_name2); ok {
+	} else if val, ok := its.Get(defaultImplName); ok {
 		return val
 	}
 	return nil
 }
 
-// doRegisterInterfaceImpl 添加接口实现实例, it_name 接口名字需要和接口本身一致
-func doRegisterInterfaceImpl(val interface{}, it_name, im_name string) {
-	doGetImplementsByInterface(it_name).Put(im_name, val)
+// doRegisterInterfaceImpl 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
+func doRegisterInterfaceImpl(val interface{}, interfaceName, implName string) {
+	doGetImplementsByInterface(interfaceName).Put(implName, val)
 }
 
 // doAutowireInterfaceImpl 多个相同接口下, 设置自动注入接口的实例名称
@@ -101,12 +101,12 @@ func doAutowireInterfaceImpl(param paramGet, val interface{}, defaultName string
 	if reft = reflect.TypeOf(val); reft.Kind() != reflect.Ptr || reft.Elem().Kind() != reflect.Interface {
 		return errors.New("only pointer interface are supported")
 	}
-	im_name := moduleImplsPrefix + "." + reft.Elem().Name()
-	impl := doGetImplementByName(reft.Elem().Name(), param.GetParam(im_name).ToString(defaultName), defaultName)
+	implName := moduleImplsPrefix + "." + reft.Elem().Name()
+	impl := doGetImplementByName(reft.Elem().Name(), param.GetParam(implName).ToString(defaultName), defaultName)
 	return reflectutil.SetInterfaceValueUnSafe(val, impl)
 }
 
 // doSetInterfaceDefaultImpl 设置默认接口实现, 在application实例上
-func doSetInterfaceDefaultImpl(param paramSet, it_name, im_name string) {
-	param.SetParam(moduleImplsPrefix+"."+it_name, im_name)
+func doSetInterfaceDefaultImpl(param paramSet, interfaceName, implName string) {
+	param.SetParam(moduleImplsPrefix+"."+interfaceName, implName)
 }
