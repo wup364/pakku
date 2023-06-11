@@ -12,7 +12,7 @@ type RPCService struct {
 	isdebug bool
 	rpcs    *rpc.Server
 	mctx    ipakku.Loader
-	config  ipakku.AppConfig
+	config  ipakku.AppConfig `@autowired:"AppConfig"`
 }
 
 // AsModule 作为一个模块加载
@@ -24,9 +24,6 @@ func (rpcs *RPCService) AsModule() ipakku.Opts {
 		OnReady: func(mctx ipakku.Loader) {
 			rpcs.mctx = mctx
 			rpcs.rpcs = rpc.NewServer()
-			if err := mctx.GetModules(&rpcs.config); nil != err {
-				logs.Panicln(err)
-			}
 		},
 	}
 }

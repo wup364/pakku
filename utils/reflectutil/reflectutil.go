@@ -39,10 +39,9 @@ func GetFunctionName(i interface{}, seps ...rune) string {
 }
 
 // GetTagValues 获取结构体, 含有tagName的字段和值
-func GetTagValues(tagName string, obj interface{}) (rs map[string]string, err error) {
+func GetTagValues(tagName string, obj interface{}) (rs map[string]string) {
 	rs = make(map[string]string)
-	var fields []reflect.StructField
-	if fields, err = GetTagField(obj); nil == err && len(fields) > 0 {
+	if fields := GetStructFields(obj); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
 			if s := string(fields[i].Tag); s == tagName {
 				rs[fields[i].Name] = ""
@@ -55,13 +54,12 @@ func GetTagValues(tagName string, obj interface{}) (rs map[string]string, err er
 			}
 		}
 	}
-	return rs, err
+	return rs
 }
 
 // GetTagFieldName 获取结构体, 含有tagName的字段
-func GetTagFieldName(tagName string, ptr interface{}) (rs []string, err error) {
-	var fields []reflect.StructField
-	if fields, err = GetTagField(ptr); nil == err && len(fields) > 0 {
+func GetTagFieldName(tagName string, ptr interface{}) (rs []string) {
+	if fields := GetStructFields(ptr); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
 			if s := string(fields[i].Tag); s == tagName || strings.HasPrefix(s, tagName) {
 				rs = append(rs, fields[i].Name)
@@ -71,13 +69,25 @@ func GetTagFieldName(tagName string, ptr interface{}) (rs []string, err error) {
 	return
 }
 
-// GetTagField 获取结构体的字段
-func GetTagField(obj interface{}) (res []reflect.StructField, err error) {
+// GetAnonymousField 获取匿名结构体字段
+func GetAnonymousField(obj interface{}) (res []reflect.StructField) {
+	if fields := GetStructFields(obj); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if fields[i].Anonymous {
+				res = append(res, fields[i])
+			}
+		}
+	}
+	return res
+}
+
+// GetStructFields 获取结构体的字段
+func GetStructFields(obj interface{}) (res []reflect.StructField) {
 	t := GetNotPtrRefType(obj)
 	for i := 0; i < t.NumField(); i++ {
 		res = append(res, t.Field(i))
 	}
-	return res, nil
+	return res
 }
 
 // GetNotPtrRefType 获取结构体的字段类型
@@ -117,6 +127,9 @@ func GetStructFieldRefValue(src interface{}, fieldName string) (reflect.Value, e
 	if err := assertionObjectType(src, true, reflect.Struct); nil != err {
 		return reflect.Value{}, err
 	}
+	if srcval, ok := src.(reflect.Value); ok {
+		return srcval.Elem().FieldByName(fieldName), nil
+	}
 	return reflect.ValueOf(src).Elem().FieldByName(fieldName), nil
 }
 
@@ -141,7 +154,12 @@ func SetStructFieldValueUnSafe(dstStruct interface{}, targetField string, obj in
 	if err := assertionObjectType(dstStruct, true, reflect.Struct); nil != err {
 		return err
 	}
-	valueOfTargetField := reflect.ValueOf(dstStruct).Elem().FieldByName(targetField)
+	var valueOfTargetField reflect.Value
+	if dstStructVal, ok := dstStruct.(reflect.Value); ok {
+		valueOfTargetField = dstStructVal.Elem().FieldByName(targetField)
+	} else {
+		valueOfTargetField = reflect.ValueOf(dstStruct).Elem().FieldByName(targetField)
+	}
 	reflect.NewAt(valueOfTargetField.Type(), unsafe.Pointer(valueOfTargetField.UnsafeAddr())).Elem().Set(reflect.ValueOf(obj))
 	return nil
 }
@@ -151,7 +169,12 @@ func SetInterfaceValueUnSafe(dst interface{}, val interface{}) error {
 	if err := assertionObjectType(dst, true, reflect.Interface); nil != err {
 		return err
 	}
-	valueOfTarget := reflect.ValueOf(dst).Elem()
+	var valueOfTarget reflect.Value
+	if dstStructVal, ok := dst.(reflect.Value); ok {
+		valueOfTarget = dstStructVal.Elem()
+	} else {
+		valueOfTarget = reflect.ValueOf(dst).Elem()
+	}
 	reflect.NewAt(valueOfTarget.Type(), unsafe.Pointer(valueOfTarget.UnsafeAddr())).Elem().Set(reflect.ValueOf(val))
 	return nil
 }
@@ -170,7 +193,11 @@ func Invoke(src interface{}, method string, params ...interface{}) []reflect.Val
 // assertionObjectType 判断输入对象类型
 func assertionObjectType(inputObj interface{}, isPointer bool, types ...reflect.Kind) error {
 	var st reflect.Type
-	if st = reflect.TypeOf(inputObj); nil == st {
+	if reftp, ok := inputObj.(reflect.Type); ok {
+		st = reftp
+	} else if refval, ok := inputObj.(reflect.Value); ok {
+		st = refval.Type()
+	} else if st = reflect.TypeOf(inputObj); nil == st {
 		return errors.New("input object is nil")
 	}
 

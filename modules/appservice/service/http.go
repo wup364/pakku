@@ -12,8 +12,8 @@ import (
 type HTTPService struct {
 	isdebug bool
 	mctx    ipakku.Loader
-	config  ipakku.AppConfig
 	http    *serviceutil.HTTPService
+	config  ipakku.AppConfig `@autowired:"AppConfig"`
 }
 
 // AsModule 作为一个模块加载
@@ -25,9 +25,6 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 		OnReady: func(mctx ipakku.Loader) {
 			service.mctx = mctx
 			service.http = serviceutil.NewHTTPService()
-			if err := mctx.GetModules(&service.config); nil != err {
-				logs.Panicln(err)
-			}
 		},
 	}
 }
