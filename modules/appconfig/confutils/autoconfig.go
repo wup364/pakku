@@ -23,8 +23,8 @@ type AutoValueOfBeanUtil struct {
 	config ipakku.IConfig
 }
 
-// AutoValueOfBean 根据struct的描述配置自动初始化值
-func (av *AutoValueOfBeanUtil) AutoValueOfBean(ptr interface{}) (err error) {
+// ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
+func (av *AutoValueOfBeanUtil) ScanAndAutoConfig(ptr interface{}) (err error) {
 	var fieldVals map[string]string
 	if fieldVals, err = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOCONFIG, ptr); nil != err || len(fieldVals) == 0 {
 		return
@@ -52,6 +52,18 @@ func (av *AutoValueOfBeanUtil) AutoValueOfBean(ptr interface{}) (err error) {
 		}
 		//
 		reflect.NewAt(fvalue.Type(), unsafe.Pointer(fvalue.UnsafeAddr())).Elem().Set(newValue)
+	}
+	return err
+}
+
+// ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
+func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr interface{}) (err error) {
+	refVal := reflect.ValueOf(ptr)
+	if refVal.Kind() != reflect.Pointer || refVal.Elem().Kind() != reflect.Struct {
+		return errors.New("the input object must be a pointer struct")
+	}
+	if err = av.setBeanValue(cprefix, refVal); nil != err {
+		return
 	}
 	return err
 }

@@ -12,7 +12,6 @@
 package pakku
 
 import (
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -27,7 +26,7 @@ func TestNewApplication(t *testing.T) {
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 	var service ipakku.AppService
-	if err := app.GetModuleByName("AppService", &service); nil != err {
+	if err := app.GetModules(&service); nil != err {
 		logs.Panicln(err)
 	}
 
@@ -51,93 +50,6 @@ func TestNewApplication(t *testing.T) {
 	// 	ListenAddr: "127.0.0.1:8080",
 	// })
 
-}
-
-// TestNewApplication1 加载自定义的模块, 创建一个http服务
-func TestNewApplication1(t *testing.T) {
-	// 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
-	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().SetLoggerLevel(logs.DEBUG).BootStart()
-
-	// 获取内部的一个模块, 这里使用 AppConfig 设置一些测试数据
-	var config ipakku.AppConfig
-	if err := app.GetModuleByName("AppConfig", &config); nil != err {
-		logs.Panicln(err)
-	} else {
-		checkError(config.SetConfig("test.value-str", "str"))
-		checkError(config.SetConfig("test.value-int", "-1024"))
-		checkError(config.SetConfig("test.value-float", "-1024.1024"))
-		checkError(config.SetConfig("test.value-strs", []string{"str1", "str2"}))
-		checkError(config.SetConfig("test.value-nums", []int64{1204, -1024}))
-	}
-
-	// 在 TestNewApplication 示例的基础上, 动态新加载了一个test4Controller模块
-	app.LoadModules(new(test4Controller))
-
-	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
-	var service ipakku.AppService
-	if err := app.GetModuleByName("AppService", &service); nil != err {
-		logs.Panicln(err)
-	}
-
-	// 启动服务
-	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
-}
-
-// test4Controller 示例模块, 同时实现了Module和Controller接口
-type test4Controller struct {
-	//  自动注入AppService接口
-	svr ipakku.AppService `@autowired:"AppService"`
-	// 自动完成配置
-	configs *tcConfig `@autoConfig:"test"`
-}
-
-type tcConfig struct {
-	value7 float64  `@value:""`
-	value6 float64  `@value:":-1"`
-	value5 float64  `@value:"value-float:-1"`
-	value4 []int64  `@value:"value-nums"`
-	value3 []string `@value:"value-strs"`
-	value2 string   `@value:"value-str"`
-	value1 int64    `@value:"value-int:-1"`
-}
-
-// AsModule 作为一个模块加载
-func (t *test4Controller) AsModule() ipakku.Opts {
-	return ipakku.Opts{
-		Name:    "Test4Controller",
-		Version: 1.0,
-		OnInit: func() {
-			logs.Infof("value7: %v", t.configs.value7)
-			logs.Infof("value6: %v", t.configs.value6)
-			logs.Infof("value5: %v", t.configs.value5)
-			logs.Infof("value4: %v", t.configs.value4)
-			logs.Infof("value3: %v", t.configs.value3)
-			logs.Infof("value2: %v", t.configs.value2)
-			logs.Infof("value1: %v", t.configs.value1)
-			// 注册一个control
-			if err := t.svr.AsController(t); nil != err {
-				logs.Panicln(err)
-			}
-		},
-	}
-}
-
-// AsController 实现 AsController 接口
-func (ctl *test4Controller) AsController() ipakku.ControllerConfig {
-	return ipakku.ControllerConfig{
-		RequestMapping: "/sayhello/v1",
-		RouterConfig: ipakku.RouterConfig{
-			ToLowerCase: true,
-			HandlerFunc: [][]interface{}{
-				{http.MethodGet, "/hello", ctl.Hello},
-			},
-		},
-	}
-}
-
-// Hello Hello
-func (t *test4Controller) Hello(w http.ResponseWriter, _ *http.Request) {
-	w.Write([]byte(fmt.Sprintf("Test4Controller -> Hello, conf=%v", t.configs)))
 }
 
 func checkError(err error) {

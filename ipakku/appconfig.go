@@ -20,6 +20,9 @@ type AppConfig interface {
 	// SetConfig 设置值
 	SetConfig(key string, value interface{}) error
 
-	// AutoValueOfBean 根据bean描述自动完成字段值
-	AutoValueOfBean(ptr interface{}) error
+	// ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
+	ScanAndAutoConfig(ptr interface{}) error
+
+	// ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
+	ScanAndAutoValue(configPrefix string, ptr interface{}) error
 }

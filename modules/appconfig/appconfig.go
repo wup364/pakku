@@ -33,7 +33,7 @@ func (conf *AppConfig) AsModule() ipakku.Opts {
 
 			// 注册监听 - 自动完成配置类的配置
 			mctx.OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, loader ipakku.Loader) {
-				if err := conf.AutoValueOfBean(module); nil != err {
+				if err := conf.ScanAndAutoConfig(module); nil != err {
 					logs.Panicln(err)
 				}
 			})
@@ -54,7 +54,12 @@ func (conf *AppConfig) SetConfig(key string, value interface{}) error {
 	return conf.config.SetConfig(key, value)
 }
 
-// AutoValueOfBean 根据bean描述自动完成字段值
-func (conf *AppConfig) AutoValueOfBean(ptr interface{}) (err error) {
-	return conf.autoValue.AutoValueOfBean(ptr)
+// ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
+func (conf *AppConfig) ScanAndAutoConfig(ptr interface{}) error {
+	return conf.autoValue.ScanAndAutoConfig(ptr)
+}
+
+// ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
+func (conf *AppConfig) ScanAndAutoValue(configPrefix string, ptr interface{}) error {
+	return conf.autoValue.ScanAndAutoValue(configPrefix, ptr)
 }

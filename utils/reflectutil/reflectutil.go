@@ -90,7 +90,7 @@ func GetNotPtrRefType(obj interface{}) reflect.Type {
 	} else {
 		t = reflect.TypeOf(obj)
 	}
-	if t.Kind() == reflect.Ptr {
+	if nil != t && t.Kind() == reflect.Ptr {
 		for t = t.Elem(); t != nil && t.Kind() == reflect.Ptr; {
 			if t = t.Elem(); nil == t {
 				return t

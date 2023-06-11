@@ -29,7 +29,7 @@ const (
 
 // Opts 模块配置项
 type Opts struct {
-	Name        string            // [必填] 模块ID
+	Name        string            // [可选] 模块ID, 不填则为结构体名称
 	Version     float64           // [必填] 模块版本
 	Description string            // [可选] 模块描述
 	OnReady     func(mctx Loader) // [可选] 每次加载模块开始之前执行
@@ -68,10 +68,10 @@ type Loader interface {
 	// GetInstanceID 获取实例的ID
 	GetInstanceID() string
 
-	// Load 装载&初始化模块 - DO Setup -> Check Ver -> Do Init
+	// Load 装载&初始化模块, 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
 	Load(mt Module)
 
-	// Loads 装载&初始化模块 - DO Setup -> Check Ver -> Do Init
+	// Loads 装载&初始化模块, 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
 	Loads(mts ...Module)
 
 	// GetParam 获取变量, 模板加载器实例上的变量
@@ -80,8 +80,8 @@ type Loader interface {
 	// SetParam 设置变量, 保存在模板加载器实例内部
 	SetParam(key string, val interface{})
 
-	// GetVersion 获取模块版本号
-	GetVersion(name string) string
+	// GetModuleVersion 获取模块版本号
+	GetModuleVersion(name string) string
 
 	// OnModuleEvent 监听模块生命周期事件
 	OnModuleEvent(name string, event ModuleEvent, val OnModuleEvent)
@@ -91,6 +91,9 @@ type Loader interface {
 
 	// GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
 	GetModuleByName(name string, val interface{}) error
+
+	// GetModules 获取模块, 模块名字和接口名字一样才能正常获得
+	GetModules(val ...interface{}) error
 
 	// Invoke 模块调用, 返回 []reflect.Value, 返回值暂时无法处理
 	Invoke(name string, method string, params ...interface{}) ([]reflect.Value, error)

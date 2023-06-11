@@ -12,6 +12,7 @@ import (
 type HTTPService struct {
 	isdebug bool
 	mctx    ipakku.Loader
+	config  ipakku.AppConfig
 	http    *serviceutil.HTTPService
 }
 
@@ -24,6 +25,9 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 		OnReady: func(mctx ipakku.Loader) {
 			service.mctx = mctx
 			service.http = serviceutil.NewHTTPService()
+			if err := mctx.GetModules(&service.config); nil != err {
+				logs.Panicln(err)
+			}
 		},
 	}
 }
@@ -104,6 +108,10 @@ func (service *HTTPService) AsRouter(url string, router ipakku.Router) error {
 	if err := service.mctx.AutoWired(router); nil != err {
 		return err
 	}
+	// 自动完成配置
+	if err := service.config.ScanAndAutoConfig(router); nil != err {
+		return err
+	}
 	return service.http.AsRouter(url, router)
 }
 
@@ -114,6 +122,10 @@ func (service *HTTPService) AsController(router ipakku.Controller) error {
 	}
 	// 自动注入依赖
 	if err := service.mctx.AutoWired(router); nil != err {
+		return err
+	}
+	// 自动完成配置
+	if err := service.config.ScanAndAutoConfig(router); nil != err {
 		return err
 	}
 	ctl := router.AsController()

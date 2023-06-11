@@ -72,6 +72,9 @@ type Application interface {
 	// GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
 	GetModuleByName(name string, val interface{}) error
 
+	// GetModule 批量获取模块, 模块名字和接口名字一样才能正常获得
+	GetModules(val ...interface{}) error
+
 	// Invoke 模块调用, 返回 []reflect.Value, 返回值暂时无法处理
 	Invoke(name string, method string, params ...interface{}) ([]reflect.Value, error)
 

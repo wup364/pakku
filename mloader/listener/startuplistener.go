@@ -27,8 +27,7 @@ func (evt *StartupListener) Bind(l ipakku.Loader) {
 
 // doReady 模块准备
 func (evt *StartupListener) doReady(m interface{}, l ipakku.Loader) {
-	mt := m.(ipakku.Module)
-	if err := mutils.AutoWired(mt, l); nil != err {
+	if err := mutils.AutoWired(m, l); nil != err {
 		logs.Panicln(err)
 	}
 }

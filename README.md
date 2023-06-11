@@ -28,7 +28,7 @@
 
 ## 如何使用
 
-    参考'pakku_test.go'文件示例
+    参考'pakku_demo_test.go'文件示例
 
 ```golang
 // 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
