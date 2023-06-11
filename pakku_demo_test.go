@@ -19,6 +19,7 @@ import (
 	"github.com/wup364/pakku/ipakku"
 	"github.com/wup364/pakku/utils/logs"
 	"github.com/wup364/pakku/utils/strutil"
+	"github.com/wup364/pakku/utils/utypes"
 )
 
 // TestBasicNetService 使用现有的模块, 创建一个http服务
@@ -79,13 +80,15 @@ type demoIterface interface {
 
 // demoConfigBean 测试模块配置结构体
 type demoConfigBean struct {
-	value7 float64  `@value:""`
-	value6 float64  `@value:":-1"`
-	value5 float64  `@value:"value-float:-1"`
-	value4 []int64  `@value:"value-nums"`
-	value3 []string `@value:"value-strs"`
-	value2 string   `@value:"value-str"`
-	value1 int64    `@value:"value-int:-1"`
+	value9 utypes.Object `@value:""`
+	value8 utypes.Object `@value:""`
+	value7 float64       `@value:""`
+	value6 float64       `@value:":-1"`
+	value5 float64       `@value:"value-float:-1"`
+	value4 []int64       `@value:"value-nums"`
+	value3 []string      `@value:"value-strs"`
+	value2 string        `@value:"value-str"`
+	value1 int64         `@value:"value-int:-1"`
 }
 
 // demoModule 示例模块, 实现了Module接口
@@ -115,6 +118,8 @@ func (t *demoModule) SayHello() string {
 
 // printConfigs 打印输出配置信息
 func (t *demoModule) printConfigs() {
+	logs.Infof("value9: %v", t.demoConfig.value9)
+	logs.Infof("value8: %v", t.demoConfig.value8)
 	logs.Infof("value7: %v", t.demoConfig.value7)
 	logs.Infof("value6: %v", t.demoConfig.value6)
 	logs.Infof("value5: %v", t.demoConfig.value5)
@@ -131,6 +136,7 @@ func (t *demoModule) updateAndSaveConfigs() {
 	checkError(t.config.SetConfig("test.value-float", "-1024.1024"))
 	checkError(t.config.SetConfig("test.value-strs", []string{"str1", strutil.GetRandom(3)}))
 	checkError(t.config.SetConfig("test.value-nums", []int64{1204, -1024}))
+	checkError(t.config.SetConfig("test.value8", map[string][]int{strutil.GetRandom(3): {1}}))
 }
 
 // reloadConfigs 重新手动将配置读取处理

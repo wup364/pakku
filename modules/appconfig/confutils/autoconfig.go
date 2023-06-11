@@ -125,10 +125,10 @@ func (av *AutoValueOfBeanUtil) setFeildValue(v reflect.Value, o utypes.Object) e
 		v.SetBool(o.ToBool(false))
 
 	} else if vKind == reflect.Map {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(v.Type())
 
 	} else if vKind == reflect.Array {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(v.Type())
 
 	} else if vKind == reflect.Slice {
 		if objType := reflect.TypeOf(obj); objType.Kind() == reflect.Slice {
@@ -143,8 +143,14 @@ func (av *AutoValueOfBeanUtil) setFeildValue(v reflect.Value, o utypes.Object) e
 
 			}
 		}
+	} else if vKind == reflect.Struct {
+		if v.Type() == reflect.TypeOf(o) {
+			v.Set(reflect.ValueOf(o))
+		} else {
+			return newUnsupportedTypeErr(v.Type())
+		}
 	} else {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(v.Type())
 	}
 	return nil
 }
@@ -154,8 +160,9 @@ func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []interfa
 	if len(in) == 0 {
 		return nil
 	}
+	vType := v.Type().Elem()
 	obj := &utypes.Object{}
-	vKind := v.Type().Elem().Kind()
+	vKind := vType.Kind()
 	if vKind == reflect.Int {
 		res := make([]int, len(in))
 		for i := 0; i < len(in); i++ {
@@ -257,20 +264,24 @@ func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []interfa
 		v.Set(reflect.ValueOf(res))
 
 	} else if vKind == reflect.Map {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(vType)
 
 	} else if vKind == reflect.Array {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(vType)
 
 	} else if vKind == reflect.Slice {
-		return ipakku.ErrUnsupported
+		return newUnsupportedTypeErr(vType)
 
 	} else if vKind == reflect.Interface {
 		v.Set(reflect.ValueOf(in))
 
 	} else {
-		return ipakku.ErrUnsupported
+		return fmt.Errorf("data types that do not support automatic configuration: %s", vType.Name())
 	}
 
 	return nil
+}
+
+func newUnsupportedTypeErr(k reflect.Type) error {
+	return fmt.Errorf("data types that do not support automatic configuration: %s", k.Name())
 }

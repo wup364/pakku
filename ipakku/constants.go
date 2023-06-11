@@ -1,10 +1,5 @@
 package ipakku
 
-import "errors"
-
-// ErrUnsupported 没有实现
-var ErrUnsupported = errors.New("unsupported")
-
 //
 const (
 
