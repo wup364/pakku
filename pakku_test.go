@@ -21,8 +21,11 @@ import (
 
 // TestNewApplication 使用现有的模块, 创建一个http服务
 func TestNewApplication(t *testing.T) {
-	// 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
-	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().SetLoggerLevel(logs.DEBUG).BootStart()
+	app := NewApplication("app-test"). // 实例化一个application
+						EnableCoreModule().         // 启用核心模块
+						EnableNetModule().          //启用网络服务模块
+						SetLoggerLevel(logs.DEBUG). // 日志级别设置为DEBUG
+						BootStart()                 // 启动实例
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 	var service ipakku.AppService

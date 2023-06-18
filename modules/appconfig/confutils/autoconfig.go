@@ -25,35 +25,12 @@ type AutoValueOfBeanUtil struct {
 
 // ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
 func (av *AutoValueOfBeanUtil) ScanAndAutoConfig(ptr interface{}) (err error) {
-	var fieldVals map[string]string
-	if fieldVals, err = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOCONFIG, ptr); nil != err || len(fieldVals) == 0 {
-		return
-	}
 	// 仅支持指针类型结构体
 	if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return errors.New("only pointer objects are supported")
 	}
-	// 获得配置类
-	for field, cprefix := range fieldVals {
-		var fvalue reflect.Value
-		if fvalue, err = reflectutil.GetStructFieldRefValue(ptr, field); nil != err {
-			logs.Infof("> AutoConfig %s [err=%s] \r\n", field, err.Error())
-			return
-		}
-		logs.Infof("> AutoConfig %s [%s] \r\n", field, fvalue.Type().String())
-		if fvalue.Type().Kind() != reflect.Ptr {
-			err = fmt.Errorf("only pointer objects are supported, field: %s", field)
-			break
-		}
-		// 创建对象
-		newValue := reflect.New(fvalue.Type().Elem())
-		if err = av.setBeanValue(cprefix, newValue); nil != err {
-			return
-		}
-		//
-		reflect.NewAt(fvalue.Type(), unsafe.Pointer(fvalue.UnsafeAddr())).Elem().Set(newValue)
-	}
-	return err
+
+	return av.scanAndAutoConfig(ptr, "")
 }
 
 // ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
@@ -68,10 +45,59 @@ func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr interface{})
 	return err
 }
 
+// scanAndAutoConfig 扫描自动配置类并配置
+func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr interface{}, prefix string) (err error) {
+	var fieldVals map[string]string
+	if fieldVals = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOCONFIG, ptr); len(fieldVals) == 0 {
+		return
+	}
+
+	// 获得配置类
+	for field, cprefix := range fieldVals {
+		if len(prefix) > 0 {
+			cprefix = prefix + "." + cprefix
+		}
+		if err = av.doConfigField(ptr, cprefix, field); nil != err {
+			return
+		}
+	}
+	return err
+}
+
+// doConfigField 配置ptr内的某个字段
+func (av *AutoValueOfBeanUtil) doConfigField(ptr interface{}, cprefix, fieldName string) (err error) {
+	var fvalue reflect.Value
+	if fvalue, err = reflectutil.GetStructFieldRefValue(ptr, fieldName); nil != err {
+		logs.Infof("> AutoConfig %s [err=%s] \r\n", fieldName, err.Error())
+		return
+	}
+	logs.Infof("> AutoConfig %s [%s] \r\n", fieldName, fvalue.Type().String())
+
+	// 创建对象 & 赋值
+	var newValue reflect.Value
+	if fvalue.Type().Kind() == reflect.Ptr {
+		newValue = reflect.New(fvalue.Type().Elem())
+	} else {
+		newValue = reflect.New(fvalue.Type())
+	}
+	if err = av.setBeanValue(cprefix, newValue); nil != err {
+		return
+	}
+
+	// 回写值
+	fValElem := reflect.NewAt(fvalue.Type(), unsafe.Pointer(fvalue.UnsafeAddr())).Elem()
+	if fvalue.Type().Kind() == reflect.Ptr {
+		fValElem.Set(newValue)
+	} else {
+		fValElem.Set(newValue.Elem())
+	}
+	return
+}
+
 // setBeanValue 结构赋值
 func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (err error) {
 	var tagvals = make(map[string]string)
-	if tagvals, err = reflectutil.GetTagValues(ipakku.PAKKUTAG_CONFIG_VALUE, ptr); nil != err || len(tagvals) == 0 {
+	if tagvals = reflectutil.GetTagValues(ipakku.PAKKUTAG_CONFIG_VALUE, ptr); len(tagvals) == 0 {
 		return
 	}
 	//
@@ -98,6 +124,15 @@ func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (
 			return
 		}
 		logs.Debugf(">  setBeanValue %s <= %s[value=%v] \r\n", fieldName, configKey, vv)
+	}
+
+	if nil == err {
+		// 继续扫描匿名类
+		err = av.scanAndAutoConfigAnonymous(ptr, cprefix)
+	}
+	if nil == err {
+		// 继续扫描嵌套的自动配置类
+		err = av.scanAndAutoConfig(ptr, cprefix)
 	}
 	return err
 }
@@ -280,6 +315,20 @@ func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []interfa
 	}
 
 	return nil
+}
+
+// scanAndAutoConfigAnonymous 扫描匿名嵌套类并配置
+func (av *AutoValueOfBeanUtil) scanAndAutoConfigAnonymous(ptr interface{}, cprefix string) (err error) {
+	var fields []reflect.StructField
+	if fields = reflectutil.GetAnonymousOrNoneTypeNameField(ptr); len(fields) == 0 {
+		return
+	}
+	for i := 0; i < len(fields); i++ {
+		if err = av.doConfigField(ptr, cprefix, fields[i].Name); nil != err {
+			return
+		}
+	}
+	return
 }
 
 func newUnsupportedTypeErr(k reflect.Type) error {

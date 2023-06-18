@@ -81,6 +81,21 @@ func GetAnonymousField(obj interface{}) (res []reflect.StructField) {
 	return res
 }
 
+// GetAnonymousOrNoneTypeNameField 获取匿名和未命名嵌套结构体字段
+func GetAnonymousOrNoneTypeNameField(obj interface{}) (res []reflect.StructField) {
+	if fields := GetStructFields(obj); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if !fields[i].Anonymous {
+				if tp := GetNotPtrRefType(fields[i].Type); reflect.Struct != tp.Kind() || len(tp.Name()) > 0 {
+					continue
+				}
+			}
+			res = append(res, fields[i])
+		}
+	}
+	return res
+}
+
 // GetStructFields 获取结构体的字段
 func GetStructFields(obj interface{}) (res []reflect.StructField) {
 	t := GetNotPtrRefType(obj)

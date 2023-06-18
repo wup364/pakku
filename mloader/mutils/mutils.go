@@ -22,15 +22,16 @@ import (
 
 // AutoWired 自动注入依赖
 func AutoWired(ptr interface{}, l ipakku.Loader) (err error) {
+	// 仅支持指针类型结构体
+	if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
+		return errors.New("only pointer object 'autoWired' is supported")
+	}
+
 	var tagvals = make(map[string]string)
 	if tagvals = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOWIRED, ptr); len(tagvals) == 0 {
 		return autoWiredAnonymousStruct(ptr, l)
 	}
 
-	// 仅支持指针类型结构体
-	if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
-		return errors.New("only pointer objects are supported")
-	}
 	for field, valKey := range tagvals {
 		var val interface{}
 		if val, err = getModuleByName(valKey, l); nil != err {
@@ -61,7 +62,7 @@ func AutoWired(ptr interface{}, l ipakku.Loader) (err error) {
 // autoWiredAnonymousStruct 自动注入匿名嵌套结构体
 func autoWiredAnonymousStruct(ptr interface{}, l ipakku.Loader) (err error) {
 	var fields []reflect.StructField
-	if fields = reflectutil.GetAnonymousField(ptr); len(fields) == 0 {
+	if fields = reflectutil.GetAnonymousOrNoneTypeNameField(ptr); len(fields) == 0 {
 		return
 	}
 
