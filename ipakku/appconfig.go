@@ -15,8 +15,14 @@ import "github.com/wup364/pakku/utils/utypes"
 type AppConfig interface {
 
 	// GetConfig 读取key的value信息, 返回 Object 对象, 里面的值可能是string或者map
-	GetConfig(key string) (res utypes.Object)
+	GetConfig(key string) utypes.Object
 
-	// SetConfig 保存配置, key value 都为stirng
-	SetConfig(key string, value string) error
+	// SetConfig 设置值
+	SetConfig(key string, value interface{}) error
+
+	// ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
+	ScanAndAutoConfig(ptr interface{}) error
+
+	// ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
+	ScanAndAutoValue(configPrefix string, ptr interface{}) error
 }

@@ -19,7 +19,7 @@ func (ev *AppEvent) AsModule() ipakku.Opts {
 	return ipakku.Opts{
 		Name:        "AppEvent",
 		Version:     1.0,
-		Description: "事件模块",
+		Description: "AppEvent module",
 		OnReady: func(mctx ipakku.Loader) {
 			var driver ipakku.IEvent
 			if err := ipakku.Override.AutowireInterfaceImpl(mctx, &driver, "local"); nil != err {
@@ -29,10 +29,6 @@ func (ev *AppEvent) AsModule() ipakku.Opts {
 			}
 			ev.event = driver
 			ev.sysevt = localevent.NewAppLocalEvent()
-		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
-		OnInit: func() {
 		},
 	}
 }

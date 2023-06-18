@@ -13,7 +13,6 @@ package pakku
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/wup364/pakku/ipakku"
@@ -22,20 +21,30 @@ import (
 
 // TestNewApplication 使用现有的模块, 创建一个http服务
 func TestNewApplication(t *testing.T) {
-	// 实例化一个application, 启用核心模块和网络服务模板并把日志级别设置为DEBUG
-	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().SetLoggerLevel(logs.DEBUG).BootStart()
+	app := NewApplication("app-test"). // 实例化一个application
+						EnableCoreModule().         // 启用核心模块
+						EnableNetModule().          //启用网络服务模块
+						SetLoggerLevel(logs.DEBUG). // 日志级别设置为DEBUG
+						BootStart()                 // 启动实例
+
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 	var service ipakku.AppService
-	if err := app.GetModuleByName("AppService", &service); nil != err {
+	if err := app.GetModules(&service); nil != err {
 		logs.Panicln(err)
 	}
+
+	// 设置一个静态页面路径
+	if err := service.SetStaticDIR("/", "./", nil); nil != err {
+		logs.Panicln(err)
+	}
+
 	// 手工注册一个请求路径(可使用Controller接口批量注册)
-	service.SetStaticDIR("/", os.TempDir(), func(rw http.ResponseWriter, r *http.Request) bool {
-		return true
-	})
-	service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
+	if err := service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte("hello!"))
-	})
+	}); nil != err {
+		logs.Panicln(err)
+	}
+
 	// 启动服务
 	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
 	// service.StartHTTP(ipakku.HTTPServiceConfig{
@@ -46,52 +55,8 @@ func TestNewApplication(t *testing.T) {
 
 }
 
-// TestNewApplication1 加载自定义的模块, 创建一个http服务
-func TestNewApplication1(t *testing.T) {
-	// 在 TestNewApplication 示例的基础上, 新加载了一个test4Controller模块
-	app := NewApplication("app-test").EnableCoreModule().EnableNetModule().AddModules(new(test4Controller)).SetLoggerLevel(logs.DEBUG).BootStart()
-	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
-	var service ipakku.AppService
-	if err := app.GetModuleByName("AppService", &service); nil != err {
-		logs.Panicln(err)
+func checkError(err error) {
+	if nil != err {
+		panic(err)
 	}
-	// 启动服务
-	service.StartHTTP(ipakku.HTTPServiceConfig{ListenAddr: "127.0.0.1:8080"})
-}
-
-// test4Controller 示例模块, 同时实现了Module和Controller接口
-type test4Controller struct {
-	//  自动注入AppService接口
-	svr ipakku.AppService `@autowired:"AppService"`
-}
-
-// AsModule 作为一个模块加载
-func (t *test4Controller) AsModule() ipakku.Opts {
-	return ipakku.Opts{
-		Name:    "Test4Controller",
-		Version: 1.0,
-		OnInit: func() {
-			if err := t.svr.AsController(t); nil != err {
-				logs.Panicln(err)
-			}
-		},
-	}
-}
-
-// AsController 实现 AsController 接口
-func (ctl *test4Controller) AsController() ipakku.ControllerConfig {
-	return ipakku.ControllerConfig{
-		RequestMapping: "/sayhello/v1",
-		RouterConfig: ipakku.RouterConfig{
-			ToLowerCase: true,
-			HandlerFunc: [][]interface{}{
-				{http.MethodGet, "/hello", ctl.Hello},
-			},
-		},
-	}
-}
-
-// Hello Hello
-func (t *test4Controller) Hello(w http.ResponseWriter, _ *http.Request) {
-	w.Write([]byte("Test4Controller -> Hello"))
 }

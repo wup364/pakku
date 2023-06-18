@@ -13,6 +13,7 @@
 package mloader
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -54,33 +55,42 @@ type Loader struct {
 	mrecord    ipakku.ModuleInfo // 模块信息记录器
 }
 
-// Loads 初始化模块 - DO Setup -> Check Ver -> Do Init
+// Loads 初始化模块, 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
 func (loader *Loader) Loads(mts ...ipakku.Module) {
 	for _, mt := range mts {
 		loader.Load(mt)
 	}
 }
 
-// Load 初始化模块 -- doready -> doSetup -> doCheckVersion -> doInit -> doEnd
+// Load 初始化模块, 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
 func (loader *Loader) Load(mt ipakku.Module) {
-	logs.Infof("> Loading %s start \r\n", mt.AsModule().Name)
+	moduleOpts := mt.AsModule()
+	moduleName := loader.getModuleName(mt)
+	logs.Infof("> Loading %s start \r\n", moduleName)
+
 	// doready 模块准备开始加载
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnReady)
+	loader.doReady(moduleName, moduleOpts)
+
 	// doSetup 模块安装
-	if len(loader.GetVersion(mt.AsModule().Name)) == 0 {
+	if len(loader.GetModuleVersion(moduleName)) == 0 {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnSetup)
-		loader.setVersion(mt.AsModule())
+		loader.doSetup(moduleName, moduleOpts)
 	}
+
 	// doCheckVersion 模块升级
-	if loader.GetVersion(mt.AsModule().Name) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
+	if loader.GetModuleVersion(moduleName) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnUpdate)
-		loader.setVersion(mt.AsModule())
+		loader.doUpdate(moduleName, moduleOpts)
 	}
+
 	// doInit 模块初始化
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnInit)
+	loader.doInit(moduleName, moduleOpts)
+
 	// doEnd 模块加载结束
-	loader.modules.Put(mt.AsModule().Name, mt)
-	logs.Infof("> Loading %s complete \r\n", mt.AsModule().Name)
+	loader.modules.Put(moduleName, mt)
+	logs.Infof("> Loading %s complete \r\n", moduleName)
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnLoaded)
 }
 
@@ -125,12 +135,13 @@ func (loader *Loader) GetParam(key string) utypes.Object {
 // OnModuleEvent 监听模块生命周期事件
 func (loader *Loader) OnModuleEvent(name string, event ipakku.ModuleEvent, val ipakku.OnModuleEvent) {
 	var events []ipakku.OnModuleEvent
-	if val, ok := loader.events.Get("ModuleEvent." + name + "." + string(event)); ok {
+	eventKey := loader.getModuleEventKey(name, event)
+	if val, ok := loader.events.Get(eventKey); ok {
 		events = val.([]ipakku.OnModuleEvent)
 	} else {
 		events = make([]ipakku.OnModuleEvent, 0)
 	}
-	loader.events.Put("ModuleEvent."+name+"."+string(event), append(events, val))
+	loader.events.Put(eventKey, append(events, val))
 }
 
 // GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
@@ -139,6 +150,22 @@ func (loader *Loader) GetModuleByName(name string, val interface{}) error {
 		return reflectutil.SetInterfaceValueUnSafe(val, tmp)
 	}
 	return fmt.Errorf(ipakku.ErrModuleNotFoundStr, name)
+}
+
+// GetModules 获取模块, 模块名字和接口名字一样才能正常获得
+func (loader *Loader) GetModules(val ...interface{}) error {
+	for i := 0; i < len(val); i++ {
+		if nil == val[i] {
+			return errors.New("the input object must be pointer interface, can not be nil")
+
+		} else if valType := reflect.TypeOf(val[i]); valType.Kind() != reflect.Ptr || valType.Elem().Kind() != reflect.Interface {
+			return errors.New("the input object must be pointer interface")
+
+		} else if err := loader.GetModuleByName(valType.Elem().Name(), val[i]); nil != err {
+			return err
+		}
+	}
+	return nil
 }
 
 // SetModuleInfoHandler 设置模块信息记录器, 会自动调用init
@@ -152,26 +179,26 @@ func (loader *Loader) SetModuleInfoHandler(mrecord ipakku.ModuleInfo) {
 	}
 }
 
-// GetVersion 获取模块版本号
-func (loader *Loader) GetVersion(name string) string {
+// GetModuleVersion 获取模块版本号
+func (loader *Loader) GetModuleVersion(name string) string {
 	return loader.mrecord.GetValue(name + ".SetupVer")
 }
 
 // setVersion 设置模块版本号 - 模块保留小数两位
-func (loader *Loader) setVersion(opts ipakku.Opts) {
-	loader.mrecord.SetValue(opts.Name+".SetupVer", strconv.FormatFloat(opts.Version, 'f', 2, 64))
-	loader.mrecord.SetValue(opts.Name+".SetupDate", strconv.FormatInt(time.Now().UnixNano(), 10))
+func (loader *Loader) setVersion(moduleName string, version float64) {
+	loader.mrecord.SetValue(moduleName+".SetupVer", strconv.FormatFloat(version, 'f', 2, 64))
+	loader.mrecord.SetValue(moduleName+".SetupDate", strconv.FormatInt(time.Now().UnixNano(), 10))
 }
 
 // doHandleModuleEvent 执行监听模块生命周期事件
 func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleEvent) {
 	var events []ipakku.OnModuleEvent
-	if val, ok := loader.events.Get("ModuleEvent.*." + string(event)); ok {
+	if val, ok := loader.events.Get(loader.getModuleEventKey("*", event)); ok {
 		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
 			events = funs
 		}
 	}
-	if val, ok := loader.events.Get("ModuleEvent." + mt.AsModule().Name + "." + string(event)); ok {
+	if val, ok := loader.events.Get(loader.getModuleEventKey(loader.getModuleName(mt), event)); ok {
 		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
 			events = append(events, funs...)
 		}
@@ -180,5 +207,61 @@ func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleE
 		for i := 0; i < len(events); i++ {
 			events[i](mt, loader)
 		}
+	}
+}
+
+// doReady 模块准备
+func (loader *Loader) doReady(moduleName string, opts ipakku.Opts) {
+	if nil != opts.OnReady {
+		logs.Infof("> Execute Module.OnReady \r\n")
+		opts.OnReady(loader)
+	}
+}
+
+// doSetup 模块安装
+func (loader *Loader) doSetup(moduleName string, opts ipakku.Opts) {
+	if nil != opts.OnSetup {
+		logs.Infof("> Execute Module.OnSetup \r\n")
+		opts.OnSetup()
+		loader.setVersion(moduleName, opts.Version)
+	}
+}
+
+// doUpdate 模块升级
+func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
+	if nil != opts.OnUpdate {
+		logs.Infof("> Execute Module.OnUpdate \r\n")
+		if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleName), 64); nil != err {
+			panic(err)
+		} else {
+			opts.OnUpdate(hv)
+			loader.setVersion(moduleName, opts.Version)
+		}
+	}
+}
+
+// doInit 模块初始化
+func (loader *Loader) doInit(moduleName string, opts ipakku.Opts) {
+	if nil != opts.OnInit {
+		logs.Infof("> Execute Module.OnInit \r\n")
+		opts.OnInit()
+	}
+}
+
+// getModuleEventKey getModuleEventKey
+func (loader *Loader) getModuleEventKey(name string, event ipakku.ModuleEvent) string {
+	return "ModuleEvent." + name + "." + string(event)
+}
+
+// getModuleName 获取模块名字(ID)
+func (loader *Loader) getModuleName(mt ipakku.Module) string {
+	if moduleName := mt.AsModule().Name; len(moduleName) == 0 {
+		if mtype := reflectutil.GetNotPtrRefType(mt); nil == mtype {
+			panic(fmt.Errorf("unable to obtain this object type: %T", mt))
+		} else {
+			return mtype.Name()
+		}
+	} else {
+		return moduleName
 	}
 }

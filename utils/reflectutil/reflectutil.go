@@ -19,35 +19,6 @@ import (
 	"unsafe"
 )
 
-const (
-	flagIndir uintptr = 1 << 7
-)
-
-type emptyInterface struct {
-	typ  *rtype
-	word unsafe.Pointer
-	flag uintptr
-}
-type rtype struct {
-	size       uintptr
-	ptrdata    uintptr
-	hash       uint32
-	tflag      uint8
-	align      uint8
-	fieldAlign uint8
-	kind       uint8
-	equal      func(unsafe.Pointer, unsafe.Pointer) bool
-	gcdata     *byte
-	str        int32
-	ptrToThis  int32
-}
-
-//go:linkname typedmemmove reflect.typedmemmove
-func typedmemmove(t *rtype, dst, src unsafe.Pointer)
-
-//go:linkname assignTo reflect.(*Value).assignTo
-func assignTo(v *reflect.Value, context string, dst *rtype, target unsafe.Pointer) reflect.Value
-
 // GetFunctionName 获取函数名称
 func GetFunctionName(i interface{}, seps ...rune) string {
 	fn := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
@@ -68,43 +39,121 @@ func GetFunctionName(i interface{}, seps ...rune) string {
 }
 
 // GetTagValues 获取结构体, 含有tagName的字段和值
-func GetTagValues(tagName string, ptr interface{}) (map[string]string, error) {
-	var v reflect.Value
-	t := reflect.TypeOf(ptr)
-	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
-		v = reflect.ValueOf(ptr)
-	} else {
-		v = reflect.ValueOf(ptr).Elem()
-	}
-	rs := make(map[string]string)
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Type().Field(i)
-		tagVal := field.Tag.Get(tagName)
-		if len(tagVal) > 0 {
-			rs[field.Name] = tagVal
+func GetTagValues(tagName string, obj interface{}) (rs map[string]string) {
+	rs = make(map[string]string)
+	if fields := GetStructFields(obj); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if s := string(fields[i].Tag); s == tagName {
+				rs[fields[i].Name] = ""
+			} else if strings.HasPrefix(s, tagName) {
+				if tagVal := fields[i].Tag.Get(tagName); len(tagVal) > 0 {
+					rs[fields[i].Name] = tagVal
+				} else {
+					rs[fields[i].Name] = ""
+				}
+			}
 		}
 	}
-	return rs, nil
+	return rs
+}
+
+// GetTagFieldName 获取结构体, 含有tagName的字段
+func GetTagFieldName(tagName string, ptr interface{}) (rs []string) {
+	if fields := GetStructFields(ptr); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if s := string(fields[i].Tag); s == tagName || strings.HasPrefix(s, tagName) {
+				rs = append(rs, fields[i].Name)
+			}
+		}
+	}
+	return
+}
+
+// GetAnonymousField 获取匿名结构体字段
+func GetAnonymousField(obj interface{}) (res []reflect.StructField) {
+	if fields := GetStructFields(obj); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if fields[i].Anonymous {
+				res = append(res, fields[i])
+			}
+		}
+	}
+	return res
+}
+
+// GetAnonymousOrNoneTypeNameField 获取匿名和未命名嵌套结构体字段
+func GetAnonymousOrNoneTypeNameField(obj interface{}) (res []reflect.StructField) {
+	if fields := GetStructFields(obj); len(fields) > 0 {
+		for i := 0; i < len(fields); i++ {
+			if !fields[i].Anonymous {
+				if tp := GetNotPtrRefType(fields[i].Type); reflect.Struct != tp.Kind() || len(tp.Name()) > 0 {
+					continue
+				}
+			}
+			res = append(res, fields[i])
+		}
+	}
+	return res
+}
+
+// GetStructFields 获取结构体的字段
+func GetStructFields(obj interface{}) (res []reflect.StructField) {
+	t := GetNotPtrRefType(obj)
+	for i := 0; i < t.NumField(); i++ {
+		res = append(res, t.Field(i))
+	}
+	return res
+}
+
+// GetNotPtrRefType 获取结构体的字段类型
+func GetNotPtrRefType(obj interface{}) reflect.Type {
+	var t reflect.Type
+	if v, ok := obj.(reflect.Type); ok {
+		t = v
+	} else if v, ok := obj.(reflect.Value); ok {
+		t = v.Type()
+	} else {
+		t = reflect.TypeOf(obj)
+	}
+	if nil != t && t.Kind() == reflect.Ptr {
+		for t = t.Elem(); t != nil && t.Kind() == reflect.Ptr; {
+			if t = t.Elem(); nil == t {
+				return t
+			}
+		}
+	}
+	return t
 }
 
 // GetStructFieldType 获取结构体的类型
-func GetStructFieldType(ptr interface{}, fieldName string) (reflect.Type, error) {
-	t := reflect.TypeOf(ptr)
-	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
-		return nil, errors.New("only pointer objects are supported")
+func GetStructFieldType(obj interface{}, fieldName string) (reflect.Type, error) {
+	t := GetNotPtrRefType(obj)
+	if t.Kind() != reflect.Struct {
+		return nil, errors.New("only struct are supported, but input type is: " + t.Kind().String())
 	}
-	v := reflect.ValueOf(ptr).Elem()
-	field := v.FieldByName(fieldName)
-	return field.Type(), nil
+	if f, ok := t.FieldByName(fieldName); ok {
+		return f.Type, nil
+	}
+	return nil, nil
 }
 
-// SetStructFieldValue 将结构体里的成员按照json名字来赋值
-func SetStructFieldValue(ptr interface{}, fieldName string, val interface{}) error {
-	t := reflect.TypeOf(ptr)
-	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
-		return errors.New("only pointer objects are supported")
+// GetStructFieldRefValue 获取结构体的值
+func GetStructFieldRefValue(src interface{}, fieldName string) (reflect.Value, error) {
+	if err := assertionObjectType(src, true, reflect.Struct); nil != err {
+		return reflect.Value{}, err
 	}
-	v := reflect.ValueOf(ptr).Elem()
+	if srcval, ok := src.(reflect.Value); ok {
+		return srcval.Elem().FieldByName(fieldName), nil
+	}
+	return reflect.ValueOf(src).Elem().FieldByName(fieldName), nil
+}
+
+// SetStructFieldValue 给结构体里内指定的成员变量赋值
+func SetStructFieldValue(dstStruct interface{}, fieldName string, val interface{}) error {
+	if err := assertionObjectType(dstStruct, true, reflect.Struct); nil != err {
+		return err
+	}
+	v := reflect.ValueOf(dstStruct).Elem()
 	field := v.FieldByName(fieldName)
 	if field.IsValid() && field.CanSet() {
 		if reflect.ValueOf(val).Type().AssignableTo(field.Type()) {
@@ -115,57 +164,33 @@ func SetStructFieldValue(ptr interface{}, fieldName string, val interface{}) err
 	return errors.New("value of type " + reflect.ValueOf(val).Type().String() + " is not assignable to type " + field.Type().String())
 }
 
-// SetStructFieldValueUnSafe 将结构体里的成员按照json名字来赋值 - 非安全指针, 可以设置私有值
-func SetStructFieldValueUnSafe(src interface{}, fieldName string, val interface{}) error {
-	if st := reflect.TypeOf(src); st.Kind() != reflect.Ptr || st.Elem().Kind() != reflect.Struct {
-		return errors.New("only pointer struct are supported")
+// SetStructFieldValueUnSafe 给结构体里的成员字段赋值 - 可以设置私有值
+func SetStructFieldValueUnSafe(dstStruct interface{}, targetField string, obj interface{}) error {
+	if err := assertionObjectType(dstStruct, true, reflect.Struct); nil != err {
+		return err
 	}
-	if vt := reflect.TypeOf(val); vt.Kind() != reflect.Ptr {
-		return errors.New("only pointer object are supported")
-	}
-	//
-	fieldObj := reflect.ValueOf(src).Elem().FieldByName(fieldName)
-	spointer := (*emptyInterface)(unsafe.Pointer(&fieldObj))
-	var target unsafe.Pointer
-	if fieldObj.Kind() == reflect.Interface {
-		target = spointer.word
-	}
-	vv := reflect.ValueOf(val)
-	vvx := assignTo(&vv, "reflect.Set", spointer.typ, target)
-	vpointer := (*emptyInterface)(unsafe.Pointer(&vvx))
-	//
-	if vpointer.flag&flagIndir != 0 {
-		typedmemmove(spointer.typ, spointer.word, vpointer.word)
+	var valueOfTargetField reflect.Value
+	if dstStructVal, ok := dstStruct.(reflect.Value); ok {
+		valueOfTargetField = dstStructVal.Elem().FieldByName(targetField)
 	} else {
-		*(*unsafe.Pointer)(spointer.word) = vpointer.word
+		valueOfTargetField = reflect.ValueOf(dstStruct).Elem().FieldByName(targetField)
 	}
+	reflect.NewAt(valueOfTargetField.Type(), unsafe.Pointer(valueOfTargetField.UnsafeAddr())).Elem().Set(reflect.ValueOf(obj))
 	return nil
 }
 
-// SetInterfaceValueUnSafe 给接口类型的src赋值val - 非安全指针
-func SetInterfaceValueUnSafe(src interface{}, val interface{}) error {
-	if st := reflect.TypeOf(src); st.Kind() != reflect.Ptr || st.Elem().Kind() != reflect.Interface {
-		return errors.New("only pointer interface are supported")
+// SetInterfaceValueUnSafe 给接口类型的src赋值val
+func SetInterfaceValueUnSafe(dst interface{}, val interface{}) error {
+	if err := assertionObjectType(dst, true, reflect.Interface); nil != err {
+		return err
 	}
-	var target unsafe.Pointer
-	sv := reflect.ValueOf(src).Elem()
-	spointer := (*emptyInterface)(unsafe.Pointer(&sv))
-	if tv := reflect.TypeOf(val); tv.Kind() != reflect.Ptr {
-		return errors.New("only pointer objects are supported")
+	var valueOfTarget reflect.Value
+	if dstStructVal, ok := dst.(reflect.Value); ok {
+		valueOfTarget = dstStructVal.Elem()
 	} else {
-		if tv.Elem().Kind() == reflect.Interface {
-			target = spointer.word
-		}
+		valueOfTarget = reflect.ValueOf(dst).Elem()
 	}
-	vv := reflect.ValueOf(val)
-	vvx := assignTo(&vv, "reflect.Set", spointer.typ, target)
-	vpointer := (*emptyInterface)(unsafe.Pointer(&vvx))
-	//
-	if vpointer.flag&flagIndir != 0 {
-		typedmemmove(spointer.typ, spointer.word, vpointer.word)
-	} else {
-		*(*unsafe.Pointer)(spointer.word) = vpointer.word
-	}
+	reflect.NewAt(valueOfTarget.Type(), unsafe.Pointer(valueOfTarget.UnsafeAddr())).Elem().Set(reflect.ValueOf(val))
 	return nil
 }
 
@@ -178,4 +203,46 @@ func Invoke(src interface{}, method string, params ...interface{}) []reflect.Val
 		}
 	}
 	return reflect.ValueOf(src).MethodByName(method).Call(args)
+}
+
+// assertionObjectType 判断输入对象类型
+func assertionObjectType(inputObj interface{}, isPointer bool, types ...reflect.Kind) error {
+	var st reflect.Type
+	if reftp, ok := inputObj.(reflect.Type); ok {
+		st = reftp
+	} else if refval, ok := inputObj.(reflect.Value); ok {
+		st = refval.Type()
+	} else if st = reflect.TypeOf(inputObj); nil == st {
+		return errors.New("input object is nil")
+	}
+
+	if isPointer && st.Kind() != reflect.Ptr {
+		return errors.New("only pointer object are supported, but the input type is: " + st.Kind().String())
+	}
+
+	if lenTypes := len(types); lenTypes > 0 {
+		var stKind reflect.Kind
+		if isPointer {
+			stKind = st.Elem().Kind()
+		} else {
+			stKind = st.Kind()
+		}
+
+		has := false
+		if lenTypes == 1 {
+			has = stKind == types[0]
+		} else {
+			for i := 0; i < lenTypes; i++ {
+				if stKind == types[i] {
+					has = true
+					break
+				}
+			}
+		}
+		if !has {
+			return errors.New("the current input objec type [" + stKind.String() + "] is not supported")
+		}
+	}
+
+	return nil
 }

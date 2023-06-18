@@ -39,8 +39,6 @@ func (cache *AppCache) AsModule() ipakku.Opts {
 			}
 			cache.appname = mctx.GetParam(ipakku.PARAMKEY_APPNAME).ToString("app")
 		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
 		OnInit: func() {
 			// 初始化配置
 			cache.cache.Init(cache.conf, cache.appname)

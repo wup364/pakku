@@ -13,8 +13,11 @@ package utypes
 
 import (
 	"encoding"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -36,6 +39,8 @@ func (obj Object) ToBool(d bool) bool {
 	}
 	if r, ok := obj.o.(bool); ok {
 		return r
+	} else if r, ok := obj.o.(string); ok {
+		return strings.ToUpper(r) == "TRUE"
 	}
 	return d
 }
@@ -47,6 +52,8 @@ func (obj Object) ToString(d string) string {
 	}
 	if r, ok := obj.o.(string); ok && len(r) > 0 {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		return r.String()
 	}
 	return d
 }
@@ -69,6 +76,15 @@ func (obj Object) ToInt(d int) int {
 	}
 	if r, ok := obj.o.(int); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return int(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseInt(r, 10, 64); nil == err {
+			return int(r)
+		}
+		return d
 	}
 	return d
 }
@@ -80,6 +96,15 @@ func (obj Object) ToInt8(d int8) int8 {
 	}
 	if r, ok := obj.o.(int8); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return int8(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseInt(r, 10, 64); nil == err {
+			return int8(r)
+		}
+		return d
 	}
 	return d
 }
@@ -91,6 +116,15 @@ func (obj Object) ToInt16(d int16) int16 {
 	}
 	if r, ok := obj.o.(int16); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return int16(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseInt(r, 10, 64); nil == err {
+			return int16(r)
+		}
+		return d
 	}
 	return d
 }
@@ -102,6 +136,15 @@ func (obj Object) ToInt32(d int32) int32 {
 	}
 	if r, ok := obj.o.(int32); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return int32(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseInt(r, 10, 64); nil == err {
+			return int32(r)
+		}
+		return d
 	}
 	return d
 }
@@ -113,6 +156,15 @@ func (obj Object) ToInt64(d int64) int64 {
 	}
 	if r, ok := obj.o.(int64); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return v
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseInt(r, 10, 64); nil == err {
+			return r
+		}
+		return d
 	}
 	return d
 }
@@ -124,6 +176,15 @@ func (obj Object) ToUint(d uint) uint {
 	}
 	if r, ok := obj.o.(uint); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return uint(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseUint(r, 10, 64); nil == err {
+			return uint(r)
+		}
+		return d
 	}
 	return d
 }
@@ -135,6 +196,15 @@ func (obj Object) ToUint8(d uint8) uint8 {
 	}
 	if r, ok := obj.o.(uint8); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return uint8(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseUint(r, 10, 64); nil == err {
+			return uint8(r)
+		}
+		return d
 	}
 	return d
 }
@@ -146,6 +216,15 @@ func (obj Object) ToUint16(d uint16) uint16 {
 	}
 	if r, ok := obj.o.(uint16); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return uint16(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseUint(r, 10, 64); nil == err {
+			return uint16(r)
+		}
+		return d
 	}
 	return d
 }
@@ -157,6 +236,15 @@ func (obj Object) ToUint32(d uint32) uint32 {
 	}
 	if r, ok := obj.o.(uint32); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return uint32(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseUint(r, 10, 64); nil == err {
+			return uint32(r)
+		}
+		return d
 	}
 	return d
 }
@@ -168,6 +256,15 @@ func (obj Object) ToUint64(d uint64) uint64 {
 	}
 	if r, ok := obj.o.(uint64); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Int64(); nil == err {
+			return uint64(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseUint(r, 10, 64); nil == err {
+			return r
+		}
+		return d
 	}
 	return d
 }
@@ -179,6 +276,15 @@ func (obj Object) ToFloat32(d float32) float32 {
 	}
 	if r, ok := obj.o.(float32); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Float64(); nil == err {
+			return float32(v)
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseFloat(r, 64); nil == err {
+			return float32(r)
+		}
+		return d
 	}
 	return d
 }
@@ -190,6 +296,15 @@ func (obj Object) ToFloat64(d float64) float64 {
 	}
 	if r, ok := obj.o.(float64); ok {
 		return r
+	} else if r, ok := obj.o.(json.Number); ok {
+		if v, err := r.Float64(); nil == err {
+			return v
+		}
+	} else if r, ok := obj.o.(string); ok {
+		if r, err := strconv.ParseFloat(r, 64); nil == err {
+			return r
+		}
+		return d
 	}
 	return d
 }
@@ -275,6 +390,12 @@ func (obj Object) ToFloat64Map(d map[float64]interface{}) map[float64]interface{
 // IsNill 是否是空
 func (obj Object) IsNill() bool {
 	return nil == obj.o
+}
+
+// SetVal 设置原始值
+func (obj *Object) SetVal(newVal interface{}) *Object {
+	obj.o = newVal
+	return obj
 }
 
 // GetVal 获取原始值
@@ -364,7 +485,7 @@ func (obj Object) Scan(v interface{}) error {
 		return nil
 	case *time.Time:
 		if !obj.IsNill() {
-			*v = obj.ToTime(time.Now())
+			*v = obj.ToTime(time.Time{})
 		}
 		return nil
 	case encoding.BinaryUnmarshaler:

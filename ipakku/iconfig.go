@@ -20,6 +20,6 @@ type IConfig interface {
 	// GetConfig 读取key的value信息, 返回 Object 对象, 里面的值可能是string或者map
 	GetConfig(key string) (res utypes.Object)
 
-	// SetConfig 保存配置, key value 都为stirng
-	SetConfig(key string, value string) error
+	// SetConfig 设置值
+	SetConfig(key string, value interface{}) error
 }

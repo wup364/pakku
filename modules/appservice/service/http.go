@@ -13,6 +13,7 @@ type HTTPService struct {
 	isdebug bool
 	mctx    ipakku.Loader
 	http    *serviceutil.HTTPService
+	config  ipakku.AppConfig `@autowired:"AppConfig"`
 }
 
 // AsModule 作为一个模块加载
@@ -24,10 +25,6 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 		OnReady: func(mctx ipakku.Loader) {
 			service.mctx = mctx
 			service.http = serviceutil.NewHTTPService()
-		},
-		OnSetup:  func() {},
-		OnUpdate: func(cv float64) {},
-		OnInit: func() {
 		},
 	}
 }
@@ -108,6 +105,10 @@ func (service *HTTPService) AsRouter(url string, router ipakku.Router) error {
 	if err := service.mctx.AutoWired(router); nil != err {
 		return err
 	}
+	// 自动完成配置
+	if err := service.config.ScanAndAutoConfig(router); nil != err {
+		return err
+	}
 	return service.http.AsRouter(url, router)
 }
 
@@ -118,6 +119,10 @@ func (service *HTTPService) AsController(router ipakku.Controller) error {
 	}
 	// 自动注入依赖
 	if err := service.mctx.AutoWired(router); nil != err {
+		return err
+	}
+	// 自动完成配置
+	if err := service.config.ScanAndAutoConfig(router); nil != err {
 		return err
 	}
 	ctl := router.AsController()
@@ -153,6 +158,9 @@ func (service *HTTPService) Filter(url string, fun ipakku.FilterFunc) error {
 // SetStaticDIR SetStaticDIR
 func (service *HTTPService) SetStaticDIR(path, dir string, fun ipakku.FilterFunc) (err error) {
 	return service.http.SetStaticDIR(path, dir, func(rw http.ResponseWriter, r *http.Request) bool {
+		if nil == fun {
+			return true
+		}
 		return fun(rw, r)
 	})
 }
@@ -160,6 +168,9 @@ func (service *HTTPService) SetStaticDIR(path, dir string, fun ipakku.FilterFunc
 // SetStaticFile SetStaticFile
 func (service *HTTPService) SetStaticFile(path, file string, fun ipakku.FilterFunc) error {
 	return service.http.SetStaticFile(path, file, func(rw http.ResponseWriter, r *http.Request) bool {
+		if nil == fun {
+			return true
+		}
 		return fun(rw, r)
 	})
 }
