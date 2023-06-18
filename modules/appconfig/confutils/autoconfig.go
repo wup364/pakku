@@ -98,6 +98,11 @@ func (av *AutoValueOfBeanUtil) doConfigField(ptr interface{}, cprefix, fieldName
 func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (err error) {
 	var tagvals = make(map[string]string)
 	if tagvals = reflectutil.GetTagValues(ipakku.PAKKUTAG_CONFIG_VALUE, ptr); len(tagvals) == 0 {
+		// 继续扫描匿名类
+		if err = av.scanAndAutoConfigAnonymous(ptr, cprefix); nil == err {
+			// 继续扫描嵌套的自动配置类
+			err = av.scanAndAutoConfig(ptr, cprefix)
+		}
 		return
 	}
 	//
@@ -128,11 +133,10 @@ func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (
 
 	if nil == err {
 		// 继续扫描匿名类
-		err = av.scanAndAutoConfigAnonymous(ptr, cprefix)
-	}
-	if nil == err {
-		// 继续扫描嵌套的自动配置类
-		err = av.scanAndAutoConfig(ptr, cprefix)
+		if err = av.scanAndAutoConfigAnonymous(ptr, cprefix); nil == err {
+			// 继续扫描嵌套的自动配置类
+			err = av.scanAndAutoConfig(ptr, cprefix)
+		}
 	}
 	return err
 }
