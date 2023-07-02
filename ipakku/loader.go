@@ -27,15 +27,41 @@ const (
 	ErrModuleNotFoundStr = "the module was not found, model: %s"
 )
 
+// Updater 模块版本升级执行器
+type Updater interface {
+	// Version 要升级到的版本号
+	Version() float64
+	// Execute 执行升级
+	Execute(mctx Loader) error
+}
+
+// Updaters 升级器
+type Updaters []Updater
+
+// 实现sort.Interface接口取元素数量方法
+func (sort Updaters) Len() int {
+	return len(sort)
+}
+
+// 实现sort.Interface接口比较元素方法
+func (sort Updaters) Less(i, j int) bool {
+	return sort[i].Version() < sort[j].Version()
+}
+
+// 实现sort.Interface接口交换元素方法
+func (sort Updaters) Swap(i, j int) {
+	sort[i], sort[j] = sort[j], sort[i]
+}
+
 // Opts 模块配置项
 type Opts struct {
-	Name        string            // [可选] 模块ID, 不填则为结构体名称
-	Version     float64           // [必填] 模块版本
-	Description string            // [可选] 模块描述
-	OnReady     func(mctx Loader) // [可选] 每次加载模块开始之前执行
-	OnSetup     func()            // [可选] 模块安装, 一个模块只初始化一次
-	OnUpdate    func(cv float64)  // [可选] 模块升级, 一个版本执行一次
-	OnInit      func()            // [可选] 每次模块安装、升级后执行一次
+	Name        string                     // [可选] 模块ID, 不填则为结构体名称
+	Version     float64                    // [必填] 模块版本
+	Description string                     // [可选] 模块描述
+	Updaters    func(mctx Loader) Updaters // [可选] 模块升级执行器, 一个版本执行一次
+	OnReady     func(mctx Loader)          // [可选] 每次加载模块开始之前执行
+	OnSetup     func()                     // [可选] 模块安装, 一个模块只初始化一次
+	OnInit      func()                     // [可选] 每次模块安装、升级后执行一次
 }
 
 // ModuleEvent 模块生命周期事件

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -229,13 +230,31 @@ func (loader *Loader) doSetup(moduleName string, opts ipakku.Opts) {
 
 // doUpdate 模块升级
 func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
-	if nil != opts.OnUpdate {
-		logs.Infof("> Execute Module.OnUpdate \r\n")
-		if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleName), 64); nil != err {
-			panic(err)
+	updaters := opts.Updaters(loader)
+	if len(updaters) == 0 {
+		return
+	}
+	var execList ipakku.Updaters = make([]ipakku.Updater, 0)
+	if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleName), 64); nil != err {
+		logs.Panicln(err)
+	} else {
+		for i := 0; i < len(updaters); i++ {
+			if upv := updaters[i].Version(); upv > hv && upv <= opts.Version {
+				execList = append(execList, updaters[i])
+			}
+		}
+	}
+	if len(execList) == 0 {
+		return
+	}
+	sort.Sort(execList)
+	for i := 0; i < len(execList); i++ {
+		logs.Infof("> Execute Module.Update ver=%.3f \r\n", execList[i].Version())
+		if err := execList[i].Execute(loader); nil == err {
+			loader.setVersion(moduleName, execList[i].Version())
+			logs.Infof("> Completed Module.Update ver=%.3f \r\n", execList[i].Version())
 		} else {
-			opts.OnUpdate(hv)
-			loader.setVersion(moduleName, opts.Version)
+			logs.Panicln(err)
 		}
 	}
 }

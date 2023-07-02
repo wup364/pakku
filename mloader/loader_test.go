@@ -29,18 +29,17 @@ func (t *DemoModule) AsModule() ipakku.Opts {
 		Name:        "DemoModule",
 		Version:     1.0,
 		Description: "示例模板",
+		Updaters:    func(mctx ipakku.Loader) ipakku.Updaters { return make([]ipakku.Updater, 0) },
 		OnReady: func(mctx ipakku.Loader) {
 			// mctx.GetParam("httpserver.listen").ToString("127.0.0.1:8080")
 			// mctx.GetModuleByName("")
+			logs.Infoln("on ready")
 		},
 		OnSetup: func() {
-
-		},
-		OnUpdate: func(cv float64) {
-
+			logs.Infoln("on setup")
 		},
 		OnInit: func() {
-
+			logs.Infoln("on init")
 		},
 	}
 }
