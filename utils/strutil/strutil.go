@@ -176,3 +176,15 @@ func ReplaceRegexpSymbol(str string) string {
 	}
 	return str
 }
+
+// GetPlaceholder 生成占位符 '?', ',', 2 => '?,?'
+func GetPlaceholder(placeholder, joinstr string, len int) (res string) {
+	for i := 0; i < len; i++ {
+		if i == 0 {
+			res = placeholder
+		} else {
+			res += joinstr + placeholder
+		}
+	}
+	return res
+}

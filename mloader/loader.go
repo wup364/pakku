@@ -74,13 +74,14 @@ func (loader *Loader) Load(mt ipakku.Module) {
 	loader.doReady(moduleName, moduleOpts)
 
 	// doSetup 模块安装
-	if len(loader.GetModuleVersion(moduleName)) == 0 {
+	var isSetup bool
+	if isSetup = len(loader.GetModuleVersion(moduleName)) == 0; isSetup {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnSetup)
 		loader.doSetup(moduleName, moduleOpts)
 	}
 
 	// doCheckVersion 模块升级
-	if loader.GetModuleVersion(moduleName) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
+	if !isSetup && loader.GetModuleVersion(moduleName) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnUpdate)
 		loader.doUpdate(moduleName, moduleOpts)
 	}
@@ -224,16 +225,23 @@ func (loader *Loader) doSetup(moduleName string, opts ipakku.Opts) {
 	if nil != opts.OnSetup {
 		logs.Infof("> Execute Module.OnSetup \r\n")
 		opts.OnSetup()
-		loader.setVersion(moduleName, opts.Version)
 	}
+	loader.setVersion(moduleName, opts.Version)
 }
 
 // doUpdate 模块升级
 func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
-	updaters := opts.Updaters(loader)
-	if len(updaters) == 0 {
+	if nil == opts.Updaters {
+		loader.setVersion(moduleName, opts.Version)
 		return
 	}
+
+	var updaters []ipakku.Updater
+	if updaters = opts.Updaters(loader); len(updaters) == 0 {
+		loader.setVersion(moduleName, opts.Version)
+		return
+	}
+
 	var execList ipakku.Updaters = make([]ipakku.Updater, 0)
 	if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleName), 64); nil != err {
 		logs.Panicln(err)
@@ -244,9 +252,12 @@ func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
 			}
 		}
 	}
+
 	if len(execList) == 0 {
+		loader.setVersion(moduleName, opts.Version)
 		return
 	}
+
 	sort.Sort(execList)
 	for i := 0; i < len(execList); i++ {
 		logs.Infof("> Execute Module.Update ver=%.3f \r\n", execList[i].Version())
@@ -257,6 +268,8 @@ func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
 			logs.Panicln(err)
 		}
 	}
+
+	loader.setVersion(moduleName, opts.Version)
 }
 
 // doInit 模块初始化
