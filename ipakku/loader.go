@@ -73,6 +73,9 @@ var ModuleEventOnUpdate ModuleEvent = "OnUpdate"
 var ModuleEventOnInit ModuleEvent = "OnInit"
 var ModuleEventOnLoaded ModuleEvent = "OnLoaded"
 
+var ModuleEventOnSetupSucced ModuleEvent = "OnSetupSucced"
+var ModuleEventOnUpdateSucced ModuleEvent = "OnUpdateSucced"
+
 // OnModuleEvent 模块生命周期事件回调函数
 type OnModuleEvent func(module interface{}, loader Loader)
 

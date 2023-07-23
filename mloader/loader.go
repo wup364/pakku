@@ -78,12 +78,14 @@ func (loader *Loader) Load(mt ipakku.Module) {
 	if isSetup = len(loader.GetModuleVersion(moduleName)) == 0; isSetup {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnSetup)
 		loader.doSetup(moduleName, moduleOpts)
+		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnSetupSucced)
 	}
 
 	// doCheckVersion 模块升级
 	if !isSetup && loader.GetModuleVersion(moduleName) != strconv.FormatFloat(mt.AsModule().Version, 'f', 2, 64) {
 		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnUpdate)
 		loader.doUpdate(moduleName, moduleOpts)
+		loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnUpdateSucced)
 	}
 
 	// doInit 模块初始化
