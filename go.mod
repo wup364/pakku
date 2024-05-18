@@ -1,3 +1,3 @@
 module github.com/wup364/pakku
 
-go 1.14
+go 1.18

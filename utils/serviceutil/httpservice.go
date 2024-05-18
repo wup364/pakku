@@ -17,7 +17,6 @@ import (
 
 	"github.com/wup364/pakku/utils/logs"
 	"github.com/wup364/pakku/utils/reflectutil"
-	"github.com/wup364/pakku/utils/strutil"
 )
 
 // NewHTTPService 新建一个HTTP服务
@@ -40,8 +39,11 @@ type AsRouter interface {
 
 // RouterConfig 批量注册器
 type RouterConfig struct {
-	ToLowerCase bool            // 是否需要url转小写, 在未指定url(使用函数名字作为url的一部分)的情况下生效
-	HandlerFunc [][]interface{} // 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
+	// ToLowerCase  是否需要url转小写, 在未指定url(使用函数名字作为url的一部分)的情况下生效
+	ToLowerCase bool
+
+	// HandlerFunc 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
+	HandlerFunc [][]interface{}
 }
 
 // HTTPService HTTP服务
@@ -101,7 +103,7 @@ func (service *HTTPService) BulkRouters(url string, toLowerCase bool, routers []
 		valLen := len(val)
 		// 执行函数取最后一个参数
 		hfc := val[valLen-1].(func(http.ResponseWriter, *http.Request))
-		//最后一段路径
+		// 最后一段路径
 		var lastPath string
 		if valLen < 3 {
 			// 没有特殊指定, 则取函数名字
@@ -112,7 +114,7 @@ func (service *HTTPService) BulkRouters(url string, toLowerCase bool, routers []
 			// 特殊路径指定在第二个上
 			lastPath = val[1].(string)
 		}
-		url := strutil.Parse2UnixPath(url + "/" + lastPath)
+		url := url + "/" + lastPath
 		if err := service.AddHandler(val[0].(string), url, func(w http.ResponseWriter, r *http.Request) {
 			hfc(w, r)
 		}); nil != err {
@@ -159,7 +161,7 @@ func (service *HTTPService) SetStaticDIR(path, dir string, fun FilterFunc) (err 
 		if err = service.AddHandler("ANY", path, handler); nil != err {
 			return
 		}
-		if err = service.AddHandler("ANY", strutil.Parse2UnixPath(path+"/:*"), handler); nil != err {
+		if err = service.AddHandler("ANY", path+"/:**", handler); nil != err {
 			return
 		}
 	}
@@ -167,7 +169,7 @@ func (service *HTTPService) SetStaticDIR(path, dir string, fun FilterFunc) (err 
 		if err = service.AddURLFilter(path, fun); nil != err {
 			return
 		}
-		err = service.AddURLFilter(path+"/:*", fun)
+		err = service.AddURLFilter(path+"/:**", fun)
 	}
 	return err
 }

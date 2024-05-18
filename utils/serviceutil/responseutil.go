@@ -6,60 +6,86 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/wup364/pakku/utils/fileutil"
-	"github.com/wup364/pakku/utils/strutil"
+	"github.com/wup364/pakku/utils/utypes"
 )
 
 // HTTPResponse 接口返回格式约束
 type HTTPResponse struct {
-	Code int         `json:"code"`
+	Code string      `json:"code"`
 	Flag string      `json:"flag"`
 	Data interface{} `json:"data"`
 }
 
-// SendSuccess 返回成功结果
+// BusinessError 业务异常
+type BusinessError interface {
+	error
+	// GetErrorCode 获取业务异常代码
+	GetErrorCode() string
+}
+
+// SendSuccess 返回成功结果 httpCode=200, code=OK
 func SendSuccess(w http.ResponseWriter, msg interface{}) {
-	SendSuccessAndStatus(w, http.StatusOK, msg)
+	SendSuccessResponse(w, http.StatusOK, "OK", msg)
 }
 
-// SendBadRequest 返回400错误
+// SendBusinessError 返回业务错误 httpCode=200,
+// code值为默认为BUSINESS_ERROR, 若error实现了CustomError接口, 则使用CustomError.ErrorCode值
+func SendBusinessError(w http.ResponseWriter, err error) {
+	if cr, ok := err.(utypes.CustomError); ok && len(cr.ErrorCode()) > 0 {
+		SendBusinessErrorAndCode(w, cr.ErrorCode(), err.Error())
+	} else {
+		SendBusinessErrorAndCode(w, "BUSINESS_ERROR", err.Error())
+	}
+}
+
+// SendBadRequest 返回400错误, code=BAD_REQUEST
 func SendBadRequest(w http.ResponseWriter, msg interface{}) {
-	SendErrorAndStatus(w, http.StatusBadRequest, msg)
+	SendErrorResponse(w, http.StatusBadRequest, "BAD_REQUEST", msg)
 }
 
-// SendServerError 返回500错误
+// SendServerError 返回500错误, code=SERVER_ERROR
 func SendServerError(w http.ResponseWriter, msg interface{}) {
-	SendErrorAndStatus(w, http.StatusInternalServerError, msg)
+	SendErrorResponse(w, http.StatusInternalServerError, "SERVER_ERROR", msg)
 }
 
-// SendSuccessAndStatus 返回成功结果
-func SendSuccessAndStatus(w http.ResponseWriter, statusCode int, msg interface{}) {
-	w.Header().Set("Content-type", "application/json;charset=utf-8")
-	w.WriteHeader(statusCode)
-	w.Write(BuildHttpResponse(statusCode, "T", msg))
+// SendUnauthorized 返回401错误, code=UNAUTHORIZED
+func SendUnauthorized(w http.ResponseWriter, msg interface{}) {
+	SendErrorResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", msg)
 }
 
-// SendErrorAndStatus 返回失败结果
-func SendErrorAndStatus(w http.ResponseWriter, statusCode int, msg interface{}) {
+// SendForbidden 返回403错误, code=FORBIDDEN
+func SendForbidden(w http.ResponseWriter, msg interface{}) {
+	SendErrorResponse(w, http.StatusForbidden, "FORBIDDEN", msg)
+}
+
+// SendBusinessErrorAndCode 返回业务错误 httpCode=200, code=errCode参数
+func SendBusinessErrorAndCode(w http.ResponseWriter, errCode string, msg interface{}) {
+	SendErrorResponse(w, http.StatusOK, errCode, msg)
+}
+
+// SendSuccessResponse 返回成功结果
+func SendSuccessResponse(w http.ResponseWriter, statusCode int, bizCode string, msg interface{}) {
 	w.Header().Set("Content-type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
-	w.Write(BuildHttpResponse(statusCode, "F", msg))
+	w.Write(BuildHttpResponse(bizCode, "T", msg))
+}
+
+// SendErrorResponse 返回失败结果
+func SendErrorResponse(w http.ResponseWriter, statusCode int, errCode string, msg interface{}) {
+	w.Header().Set("Content-type", "application/json;charset=utf-8")
+	w.WriteHeader(statusCode)
+	w.Write(BuildHttpResponse(errCode, "F", msg))
 }
 
 // BuildHttpResponse 构建返回json
-func BuildHttpResponse(code int, flag string, str interface{}) []byte {
+func BuildHttpResponse(code string, flag string, str interface{}) []byte {
 	bt, err := json.Marshal(HTTPResponse{Code: code, Flag: flag, Data: str})
 	if nil != err {
 		return []byte(err.Error())
 	}
 	return bt
-}
-
-// 将请求体解析为对象
-func ParseHTTPRequest(r *http.Request, obj interface{}) error {
-	return json.Unmarshal([]byte(strutil.ReadAsString(r.Body)), obj)
 }
 
 // Parse2HTTPResponse json转对象
@@ -90,30 +116,6 @@ func WirteFile(w http.ResponseWriter, r *http.Request, path string) {
 			RangeWrite(w, sa, start, end, maxSize, hasRange)
 		}
 	}
-}
-
-// GetRequestRange 解析http分段头信息
-func GetRequestRange(r *http.Request, maxSize int64) (start, end int64, hasRange bool) {
-	var qRange string
-	if qRange = r.Header.Get("Range"); len(qRange) == 0 {
-		qRange = r.FormValue("Range")
-	}
-	if len(qRange) > 0 {
-		hasRange = true
-		temp := qRange[strings.Index(qRange, "=")+1:]
-		if index := strings.Index(temp, "-"); index > -1 {
-			var err error
-			if start, err = strconv.ParseInt(temp[0:strings.Index(temp, "-")], 10, 64); nil != err || start < 0 {
-				start = 0
-			}
-			if end, err = strconv.ParseInt(temp[strings.Index(temp, "-")+1:], 10, 64); nil != err || end == 0 {
-				end = maxSize
-			}
-		}
-	} else {
-		end = maxSize
-	}
-	return start, end, hasRange
 }
 
 // RangeWrite 范围写入http, 如文件分段传输

@@ -29,10 +29,8 @@ func (t *DemoModule) AsModule() ipakku.Opts {
 		Name:        "DemoModule",
 		Version:     1.0,
 		Description: "示例模板",
-		Updaters:    func(mctx ipakku.Loader) ipakku.Updaters { return make([]ipakku.Updater, 0) },
-		OnReady: func(mctx ipakku.Loader) {
-			// mctx.GetParam("httpserver.listen").ToString("127.0.0.1:8080")
-			// mctx.GetModuleByName("")
+		Updaters:    func(app ipakku.Application) ipakku.Updaters { return make([]ipakku.Updater, 0) },
+		OnReady: func(app ipakku.Application) {
 			logs.Infoln("on ready")
 		},
 		OnSetup: func() {
@@ -51,8 +49,8 @@ func (t *DemoModule) Hello() {
 
 // 在 mian 中调用
 func TestLoader(t *testing.T) {
-	loader := New("Test")
-	// loader.SetModuleInfoHandler(xxx)
+	loader := NewDefault("Test")
+	// loader.SetModuleInfoRecorder(xxx)
 	loader.Loads(new(DemoModule))
-	loader.Invoke("DemoModule", "Hello")
+	loader.GetApplication().Utils().Invoke("DemoModule", "Hello")
 }

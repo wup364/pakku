@@ -8,7 +8,7 @@
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // 1. 通过重新实现 ixxx.go 接口
-// 2. 在对应模块初始化之前注册实例 ipakku.Override.RegisterInterfaceImpl(val, interface-name, name) (如: init方法)
+// 2. 在对应模块初始化之前注册实例 ipakku.Override.RegisterPakkuModuleImplement(val, interface-name, name) (如: init方法)
 // 3. 再在启动时app.SetParam(key, name)就可以替代默认模块啦~
 package ipakku
 
@@ -25,48 +25,63 @@ const (
 	moduleImplsPrefix = "pakku.module.implement"
 )
 
-// Override 复写模块静态方法
-var Override = overrideFuc{
-	SetInterfaceDefaultImpl: doSetInterfaceDefaultImpl,
-	RegisterInterfaceImpl:   doRegisterInterfaceImpl,
-	AutowireInterfaceImpl:   doAutowireInterfaceImpl,
-	GetImplementByName:      doGetImplementByName,
-	SetModuleInfoImpl:       doSetModuleInfoImpl,
-	GetModuleInfoImpl:       doGetModuleInfoImpl,
-}
+// PakkuConf  PakkuConf配置, 如: 复写模块、设置模块信息记录器
+var PakkuConf = pakkuConfFuc{
+	// SetPakkuModuleImplement 设置默认接口实现, 在application实例上
+	SetPakkuModuleImplement: doSetPakkuModuleImplement,
 
-// overrideFuc 重载函数
-type overrideFuc struct {
-	GetImplementByName      func(interfaceName, implName, defaultImplName string) interface{}
-	RegisterInterfaceImpl   func(val interface{}, interfaceName, implName string)
-	AutowireInterfaceImpl   func(param paramGet, val interface{}, defaultName string) error
-	SetInterfaceDefaultImpl func(param paramSet, interfaceName, implName string)
-	SetModuleInfoImpl       func(val ModuleInfo)
-	GetModuleInfoImpl       func() ModuleInfo
-}
+	// GetPakkuModuleImplement 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
+	GetPakkuModuleImplement: doGetPakkuModuleImplement,
 
-type paramGet interface {
-	GetParam(key string) utypes.Object
-}
-type paramSet interface {
-	SetParam(key string, val interface{})
+	// RegisterPakkuModuleImplement 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
+	RegisterPakkuModuleImplement: doRegisterPakkuModuleImplement,
+
+	// AutowirePakkuModuleImplement 多个相同接口下, 设置自动注入接口的实例名称
+	AutowirePakkuModuleImplement: doAutowirePakkuModuleImplement,
+
+	// SetModuleInfoRecorderImplement 模块信息记录实现方法
+	SetModuleInfoRecorderImplement: doSetModuleInfoRecorderImplement,
+
+	// GetModuleInfoRecorderImplement 获取模块信息记录实现方法
+	GetModuleInfoRecorderImplement: doGetModuleInfoRecorderImplement,
 }
 
 // moduleInfoImpl moduleloader 默认的 ModuleInfo  记录器, 给他赋值以改变记录方式
-var moduleInfoImpl ModuleInfo
-
-// doSetModuleInfoImpl 注册模块信息记录实现方法
-func doSetModuleInfoImpl(val ModuleInfo) {
-	moduleInfoImpl = val
-}
-
-// doGetModuleInfoImpl 获取模块信息记录实现方法
-func doGetModuleInfoImpl() ModuleInfo {
-	return moduleInfoImpl
-}
+var moduleInfoImpl ModuleInfoRecorder
 
 // implements 所有的ixxx.go实现实例, 结构: { ixxx: map[name]implement }
 var implements = utypes.NewSafeMap()
+
+// pakkuConfFuc 重载函数
+type pakkuConfFuc struct {
+	// SetPakkuModuleImplement 设置默认接口实现, 在application实例上
+	SetPakkuModuleImplement func(param ParamSetter, interfaceName, name string)
+
+	// GetPakkuModuleImplement 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
+	GetPakkuModuleImplement func(interfaceName, name, defaultName string) interface{}
+
+	// RegisterPakkuModuleImplement 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
+	RegisterPakkuModuleImplement func(val interface{}, interfaceName, name string)
+
+	// AutowirePakkuModuleImplement 多个相同接口下, 设置自动注入接口的实例名称
+	AutowirePakkuModuleImplement func(param ParamGetter, name interface{}, defaultName string) error
+
+	// SetModuleInfoRecorderImplement 模块信息记录实现方法
+	SetModuleInfoRecorderImplement func(val ModuleInfoRecorder)
+
+	// GetModuleInfoRecorderImplement 获取模块信息记录实现方法
+	GetModuleInfoRecorderImplement func() ModuleInfoRecorder
+}
+
+// doSetModuleInfoRecorderImplement 注册模块信息记录实现方法
+func doSetModuleInfoRecorderImplement(val ModuleInfoRecorder) {
+	moduleInfoImpl = val
+}
+
+// doGetModuleInfoRecorderImplement 获取模块信息记录实现方法
+func doGetModuleInfoRecorderImplement() ModuleInfoRecorder {
+	return moduleInfoImpl
+}
 
 // doGetImplementsByInterface 根据接口名字查找所有实现
 func doGetImplementsByInterface(interfaceName string) *utypes.SafeMap {
@@ -79,8 +94,8 @@ func doGetImplementsByInterface(interfaceName string) *utypes.SafeMap {
 	}
 }
 
-// doGetImplementByName 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
-func doGetImplementByName(interfaceName, implName, defaultImplName string) interface{} {
+// doGetPakkuModuleImplement 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
+func doGetPakkuModuleImplement(interfaceName, implName, defaultImplName string) interface{} {
 	its := doGetImplementsByInterface(interfaceName)
 	if val, ok := its.Get(implName); ok {
 		return val
@@ -90,23 +105,23 @@ func doGetImplementByName(interfaceName, implName, defaultImplName string) inter
 	return nil
 }
 
-// doRegisterInterfaceImpl 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
-func doRegisterInterfaceImpl(val interface{}, interfaceName, implName string) {
-	doGetImplementsByInterface(interfaceName).Put(implName, val)
+// doRegisterPakkuModuleImplement 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
+func doRegisterPakkuModuleImplement(val interface{}, interfaceName, name string) {
+	doGetImplementsByInterface(interfaceName).Put(name, val)
 }
 
-// doAutowireInterfaceImpl 多个相同接口下, 设置自动注入接口的实例名称
-func doAutowireInterfaceImpl(param paramGet, val interface{}, defaultName string) error {
+// doAutowirePakkuModuleImplement 多个相同接口下, 设置自动注入接口的实例名称
+func doAutowirePakkuModuleImplement(param ParamGetter, name interface{}, defaultName string) error {
 	var reft reflect.Type
-	if reft = reflect.TypeOf(val); reft.Kind() != reflect.Ptr || reft.Elem().Kind() != reflect.Interface {
+	if reft = reflect.TypeOf(name); reft.Kind() != reflect.Ptr || reft.Elem().Kind() != reflect.Interface {
 		return errors.New("only pointer interface are supported")
 	}
 	implName := moduleImplsPrefix + "." + reft.Elem().Name()
-	impl := doGetImplementByName(reft.Elem().Name(), param.GetParam(implName).ToString(defaultName), defaultName)
-	return reflectutil.SetInterfaceValueUnSafe(val, impl)
+	impl := doGetPakkuModuleImplement(reft.Elem().Name(), param.GetParam(implName).ToString(defaultName), defaultName)
+	return reflectutil.SetInterfaceValueUnSafe(name, impl)
 }
 
-// doSetInterfaceDefaultImpl 设置默认接口实现, 在application实例上
-func doSetInterfaceDefaultImpl(param paramSet, interfaceName, implName string) {
-	param.SetParam(moduleImplsPrefix+"."+interfaceName, implName)
+// doSetPakkuModuleImplement 设置默认接口实现, 在application实例上
+func doSetPakkuModuleImplement(param ParamSetter, interfaceName, name string) {
+	param.SetParam(moduleImplsPrefix+"."+interfaceName, name)
 }

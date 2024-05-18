@@ -20,19 +20,18 @@ type AppConfig struct {
 // AsModule 作为一个模块加载
 func (conf *AppConfig) AsModule() ipakku.Opts {
 	return ipakku.Opts{
-		Name:        "AppConfig",
 		Version:     1.0,
 		Description: "AppConfig module",
-		OnReady: func(mctx ipakku.Loader) {
+		OnReady: func(app ipakku.Application) {
 			// 获取配置的适配器, 默认json
-			if err := ipakku.Override.AutowireInterfaceImpl(mctx, &conf.config, "json"); nil != err {
+			if err := ipakku.PakkuConf.AutowirePakkuModuleImplement(app.Params(), &conf.config, "json"); nil != err {
 				logs.Panicln(err)
 			}
-			conf.configname = mctx.GetParam(ipakku.PARAMKEY_APPNAME).ToString("app")
+			conf.configname = app.Params().GetParam(ipakku.PARAMS_KEY_APPNAME).ToString(ipakku.DEFT_VAL_APPNAME)
 			conf.autoValue = confutils.NewAutoValueOfBeanUtil(conf.config)
 
 			// 注册监听 - 自动完成配置类的配置
-			mctx.OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, loader ipakku.Loader) {
+			app.Modules().OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, app ipakku.Application) {
 				if err := conf.ScanAndAutoConfig(module); nil != err {
 					logs.Panicln(err)
 				}

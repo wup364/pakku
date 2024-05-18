@@ -28,3 +28,8 @@ func TestHttpService(t *testing.T) {
 		logs.Panicln(err)
 	}
 }
+
+func TestGetRegexpStr(t *testing.T) {
+	res := NewHTTPService().getRegexpStr("**/item:*/item1/:*/item2/:**/prefix:*")
+	t.Log(res)
+}
