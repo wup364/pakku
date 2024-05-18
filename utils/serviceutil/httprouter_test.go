@@ -78,10 +78,10 @@ func AddURLHandlers(router *ServiceRouter) {
 }
 
 func AddURLFilters(router *ServiceRouter) {
-	router.AddURLFilter("/", func(rw http.ResponseWriter, r *http.Request) bool {
+	router.AddURLFilter("/\\:**", func(rw http.ResponseWriter, r *http.Request) bool {
 		return true
 	})
-	router.AddURLFilter("/hello/xxxxx", func(rw http.ResponseWriter, r *http.Request) bool {
+	router.AddURLFilter("/hello\\xxxxx", func(rw http.ResponseWriter, r *http.Request) bool {
 		return true
 	})
 	router.AddURLFilter("/hello/xx/x", func(rw http.ResponseWriter, r *http.Request) bool {
@@ -94,7 +94,7 @@ func AddURLFilters(router *ServiceRouter) {
 	router.AddURLFilter("/hello:*", func(rw http.ResponseWriter, r *http.Request) bool {
 		return true
 	})
-	router.AddURLFilter("/hello/:[a-zA-Z]", func(rw http.ResponseWriter, r *http.Request) bool {
+	router.AddURLFilter("/hello\\:[a-zA-Z]", func(rw http.ResponseWriter, r *http.Request) bool {
 		return true
 	})
 	router.AddURLFilter("/hello", func(rw http.ResponseWriter, r *http.Request) bool {

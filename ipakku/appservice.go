@@ -39,18 +39,19 @@ var Filter4Passed FilterFunc = func(http.ResponseWriter, *http.Request) bool { r
 // HandlerFunc [][]interface{} 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
 type RouterConfig serviceutil.RouterConfig
 
-// FilterConfig 过滤器配置对象
-type FilterConfig struct {
-	FilterFunc [][]interface{} // 需要注册的函数(注意注册顺序) [{"指定的url", "FilterFunc function"}]
+// FilterConfigItem 过滤器配置对象
+type FilterConfigItem struct {
+	Path string     // 指定的url, 自动添加RequestMapping前缀
+	Func FilterFunc // http请求过滤器, 返回bool, true: 继续, false: 停止
 }
 
 // ControllerConfig  注册对象为Controller配置对象;
 // RequestMapping 请求路径, 也可以是版本号(v1|v2...)作为路径的一部分;
 // RouterConfig 批量注册服务路径配置对象
 type ControllerConfig struct {
-	RequestMapping string // 请求路径, 也可以是版本号(v1|v2...)作为路径的一部分;
-	RouterConfig          // 批量注册服务路径配置对象
-	FilterConfig          // 过滤器配置对象, 自动添加前缀路径(RequestMapping值)
+	RequestMapping string             // 请求路径, 也可以是版本号(v1|v2...)作为路径的一部分;
+	RouterConfig                      // 批量注册服务路径配置对象
+	FilterConfig   []FilterConfigItem // 过滤器配置对象, 自动添加前缀路径(RequestMapping值)
 }
 
 // Router 批量注册服务路径
@@ -98,7 +99,7 @@ type HTTPService interface {
 	// AsController 批量注册路由, 使用RequestMapping字段作为前缀url
 	AsController(router Controller) error
 
-	// Filter Filter
+	// Filter 注册请求过滤器
 	Filter(url string, fun FilterFunc) error
 
 	// SetStaticDIR SetStaticDIR
@@ -115,6 +116,7 @@ type RPCService interface {
 
 // HTTPServiceConfig 启动配置
 type HTTPServiceConfig struct {
+	Debug      bool
 	CertFile   string
 	KeyFile    string
 	ListenAddr string
@@ -123,6 +125,7 @@ type HTTPServiceConfig struct {
 
 // RPCServiceConfig 启动配置
 type RPCServiceConfig struct {
+	Debug      bool
 	Network    string
 	ListenAddr string
 	Listener   net.Listener

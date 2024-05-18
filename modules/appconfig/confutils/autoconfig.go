@@ -48,7 +48,7 @@ func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr interface{})
 // scanAndAutoConfig 扫描自动配置类并配置
 func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr interface{}, prefix string) (err error) {
 	var fieldVals map[string]string
-	if fieldVals = reflectutil.GetTagValues(ipakku.PAKKUTAG_AUTOCONFIG, ptr); len(fieldVals) == 0 {
+	if fieldVals = reflectutil.GetTagValues(ipakku.STAG_AUTOCONFIG, ptr); len(fieldVals) == 0 {
 		return
 	}
 
@@ -68,10 +68,10 @@ func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr interface{}, prefix string)
 func (av *AutoValueOfBeanUtil) doConfigField(ptr interface{}, cprefix, fieldName string) (err error) {
 	var fvalue reflect.Value
 	if fvalue, err = reflectutil.GetStructFieldRefValue(ptr, fieldName); nil != err {
-		logs.Infof("> AutoConfig %s [err=%s] \r\n", fieldName, err.Error())
+		logs.Errorf("> AutoConfig %s [err=%s] \r\n", fieldName, err.Error())
 		return
 	}
-	logs.Infof("> AutoConfig %s [%s] \r\n", fieldName, fvalue.Type().String())
+	logs.Infof("> AutoConfig %s[%s] \r\n", fieldName, fvalue.Type().String())
 
 	// 创建对象 & 赋值
 	var newValue reflect.Value
@@ -97,7 +97,7 @@ func (av *AutoValueOfBeanUtil) doConfigField(ptr interface{}, cprefix, fieldName
 // setBeanValue 结构赋值
 func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (err error) {
 	var tagvals = make(map[string]string)
-	if tagvals = reflectutil.GetTagValues(ipakku.PAKKUTAG_CONFIG_VALUE, ptr); len(tagvals) == 0 {
+	if tagvals = reflectutil.GetTagValues(ipakku.STAG_CONFIG_VALUE, ptr); len(tagvals) == 0 {
 		// 继续扫描匿名类
 		if err = av.scanAndAutoConfigAnonymous(ptr, cprefix); nil == err {
 			// 继续扫描嵌套的自动配置类
@@ -128,7 +128,6 @@ func (av *AutoValueOfBeanUtil) setBeanValue(cprefix string, ptr reflect.Value) (
 		if err = av.setFeildValue(reflect.NewAt(vv.Type(), unsafe.Pointer(vv.UnsafeAddr())).Elem(), confVal); nil != err {
 			return
 		}
-		logs.Debugf(">  setBeanValue %s <= %s[value=%v] \r\n", fieldName, configKey, vv)
 	}
 
 	if nil == err {

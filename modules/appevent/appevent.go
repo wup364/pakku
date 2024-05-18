@@ -11,18 +11,17 @@ import (
 type AppEvent struct {
 	event  ipakku.AppEvent
 	sysevt ipakku.AppSyncEvent
-	conf   ipakku.AppConfig `@autowired:"AppConfig"`
+	conf   ipakku.AppConfig `@autowired:""`
 }
 
 // AsModule 作为一个模块加载
 func (ev *AppEvent) AsModule() ipakku.Opts {
 	return ipakku.Opts{
-		Name:        "AppEvent",
 		Version:     1.0,
 		Description: "AppEvent module",
-		OnReady: func(mctx ipakku.Loader) {
+		OnReady: func(app ipakku.Application) {
 			var driver ipakku.IEvent
-			if err := ipakku.Override.AutowireInterfaceImpl(mctx, &driver, "local"); nil != err {
+			if err := ipakku.PakkuConf.AutowirePakkuModuleImplement(app.Params(), &driver, "local"); nil != err {
 				logs.Panicln(err)
 			} else if err := driver.Init(ev.conf); nil != err {
 				logs.Panicln(err)

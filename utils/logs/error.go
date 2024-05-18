@@ -14,6 +14,7 @@ package logs
 import (
 	"fmt"
 	"log"
+	"runtime"
 )
 
 // ErrorLogger ErrorLogger
@@ -48,6 +49,7 @@ func Panicln(v ...interface{}) {
 func Error(v ...interface{}) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprint(v...))
+		logWithStackInfo(2)
 	}
 }
 
@@ -55,6 +57,7 @@ func Error(v ...interface{}) {
 func Errorf(format string, v ...interface{}) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprintf(format, v...))
+		logWithStackInfo(2)
 	}
 }
 
@@ -62,5 +65,20 @@ func Errorf(format string, v ...interface{}) {
 func Errorln(v ...interface{}) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprintln(v...))
+		logWithStackInfo(2)
+	}
+}
+
+// logWithStackInfo 打印调用栈信息
+func logWithStackInfo(startStackLevel int) {
+	if errLogStackLevel <= 0 {
+		return
+	}
+	for i := startStackLevel; i < errLogStackLevel; i++ {
+		if pc, file, line, ok := runtime.Caller(i); ok {
+			fName := runtime.FuncForPC(pc).Name()
+			logEStack.Output(2, fmt.Sprintf("%s\n", fName))
+			logEStack.Output(2, fmt.Sprintf("at \t%s:%d\n", file, line))
+		}
 	}
 }

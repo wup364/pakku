@@ -26,18 +26,13 @@ import (
 
 // TestBasicNetService 使用现有的模块, 创建一个http服务
 func TestBasicNetService(t *testing.T) {
-	app := NewApplication("app-example-basicnetservice"). // 实例化一个application
-								EnableCoreModule().         // 启用核心模块
-								EnableNetModule().          //启用网络服务模块
-								SetLoggerLevel(logs.DEBUG). // 日志级别设置为DEBUG
-								BootStart()                 // 启动实例
+	builder := NewApplication("app-example-basicnetservice")    // 实例构建器
+	builder.PakkuModules().EnableAppConfig().EnableAppService() // 默认模块启用: 配置模块、网络服务模块
+	builder.PakkuConfigure().SetLoggerLevel(logs.DEBUG)         // 日志级别设置为DEBUG
+	app := builder.BootStart()                                  // 启动实例
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
-	var service ipakku.AppService
-	if err := app.GetModules(&service); nil != err {
-		logs.Panicln(err)
-	}
-
+	service := app.PakkuModules().GetAppService()
 	// 设置一个静态页面路径
 	if err := service.SetStaticDIR("/", "./", nil); nil != err {
 		logs.Panicln(err)
@@ -62,19 +57,15 @@ func TestBasicNetService(t *testing.T) {
 
 // TestCustomModulesAndController 加载自定义的模块, 创建一个http服务
 func TestCustomModulesAndController(t *testing.T) {
-	// 实例化一个application, 启用核心模块和网络服务模板并加载了一个自定义模块, 最后把日志级别设置为DEBUG
-	app := NewApplication("app-example-custommodulesandcontroller").
-		EnableCoreModule().
-		EnableNetModule().
-		AddModules(new(exampleModule)).
-		SetLoggerLevel(logs.DEBUG).
-		BootStart()
+	// 实例化一个application, 启用配置模块、网络服务模块并加载了一个自定义模块, 把日志级别设置为DEBUG
+	builder := NewApplication("app-example-custommodulesandcontroller")
+	builder.PakkuModules().EnableAppConfig().EnableAppService() // 默认模块启用: 配置模块、网络服务模块
+	builder.CustomModules().AddModules(new(exampleModule))      // 自定义模块加载
+	builder.PakkuConfigure().SetLoggerLevel(logs.DEBUG)         // 日志级别设置为DEBUG
+	app := builder.BootStart()                                  // 启动实例
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
-	var service ipakku.AppService
-	if err := app.GetModules(&service); nil != err {
-		logs.Panicln(err)
-	}
+	service := app.PakkuModules().GetAppService()
 
 	// 注册一个controller
 	checkError(service.AsController(new(exampleController)))
@@ -111,7 +102,7 @@ type exampleConfigBean1 struct {
 
 // exampleModule 示例模块, 实现了Module接口
 type exampleModule struct {
-	config        ipakku.AppConfig  `@autowired:"AppConfig"`
+	config        ipakku.AppConfig  `@autowired:""`
 	exampleConfig exampleConfigBean `@autoConfig:"test"`
 }
 

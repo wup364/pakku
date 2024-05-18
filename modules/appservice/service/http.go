@@ -10,10 +10,9 @@ import (
 
 // HTTPService HTTP服务路由
 type HTTPService struct {
-	isdebug bool
-	mctx    ipakku.Loader
-	http    *serviceutil.HTTPService
-	config  ipakku.AppConfig `@autowired:"AppConfig"`
+	app    ipakku.Application
+	http   *serviceutil.HTTPService
+	config ipakku.AppConfig `@autowired:""`
 }
 
 // AsModule 作为一个模块加载
@@ -22,8 +21,8 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 		Name:        "HTTPService",
 		Version:     1.0,
 		Description: "HTTP服务路由",
-		OnReady: func(mctx ipakku.Loader) {
-			service.mctx = mctx
+		OnReady: func(app ipakku.Application) {
+			service.app = app
 			service.http = serviceutil.NewHTTPService()
 		},
 	}
@@ -31,7 +30,6 @@ func (service *HTTPService) AsModule() ipakku.Opts {
 
 // SetDebug SetDebug
 func (service *HTTPService) SetDebug(debug bool) {
-	service.isdebug = debug
 	service.http.SetDebug(debug)
 }
 
@@ -98,11 +96,10 @@ func (service *HTTPService) Any(url string, fun ipakku.HandlerFunc) error {
 
 // AsRouter 批量注册路由, 可以再指定一个前缀url
 func (service *HTTPService) AsRouter(url string, router ipakku.Router) error {
-	if service.isdebug {
-		logs.Debugf("AsRouter: %T\r\n", router)
-	}
+	logs.Debugf("AsRouter: %T\r\n", router)
+
 	// 自动注入依赖
-	if err := service.mctx.AutoWired(router); nil != err {
+	if err := service.app.Utils().AutoWired(router); nil != err {
 		return err
 	}
 	// 自动完成配置
@@ -113,39 +110,34 @@ func (service *HTTPService) AsRouter(url string, router ipakku.Router) error {
 }
 
 // AsController 批量注册路由, 使用RequestMapping字段作为前缀url
-func (service *HTTPService) AsController(router ipakku.Controller) error {
-	if service.isdebug {
-		logs.Debugf("AsController: %T\r\n", router)
-	}
+func (service *HTTPService) AsController(router ipakku.Controller) (err error) {
+	logs.Debugf("AsController: %T\r\n", router)
+
 	// 自动注入依赖
-	if err := service.mctx.AutoWired(router); nil != err {
-		return err
+	if err = service.app.Utils().AutoWired(router); nil != err {
+		return
 	}
 	// 自动完成配置
-	if err := service.config.ScanAndAutoConfig(router); nil != err {
-		return err
+	if err = service.config.ScanAndAutoConfig(router); nil != err {
+		return
 	}
+	//
 	ctl := router.AsController()
-	if err := service.http.BulkRouters(ctl.RequestMapping, ctl.ToLowerCase, ctl.HandlerFunc); nil == err {
-		if len(ctl.FilterConfig.FilterFunc) > 0 {
-			for _, fc := range ctl.FilterConfig.FilterFunc {
-				if val, ok := fc[1].(ipakku.FilterFunc); ok {
-					if err = service.Filter(ctl.RequestMapping+"/"+fc[0].(string), val); nil != err {
-						return err
-					}
-				} else {
-					if err = service.Filter(ctl.RequestMapping+"/"+fc[0].(string), func(rw http.ResponseWriter, r *http.Request) bool {
-						return fc[1].(func(http.ResponseWriter, *http.Request) bool)(rw, r)
-					}); nil != err {
-						return err
-					}
-				}
+	if err = service.http.BulkRouters(ctl.RequestMapping, ctl.ToLowerCase, ctl.HandlerFunc); nil != err {
+		return
+	}
+	if len(ctl.FilterConfig) > 0 {
+		for _, fc := range ctl.FilterConfig {
+			var subPath string
+			if subPath = fc.Path; len(subPath) == 0 {
+				subPath = ":**"
+			}
+			if err = service.Filter(ctl.RequestMapping+"/"+subPath, fc.Func); nil != err {
+				return
 			}
 		}
-	} else {
-		return err
 	}
-	return nil
+	return
 }
 
 // Filter Filter

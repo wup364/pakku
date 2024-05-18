@@ -28,38 +28,20 @@ import (
 	"github.com/wup364/pakku/utils/utypes"
 )
 
-// New 实例一个加载器对象
-func New(name string) ipakku.Loader {
-	loader := &Loader{
-		events:     utypes.NewSafeMap(),
-		modules:    utypes.NewSafeMap(),
-		mparams:    utypes.NewSafeMap(),
-		instanceID: strutil.GetUUID(),
-	}
-	if len(name) == 0 {
-		name = ipakku.CONST_APPNAME
-	}
-	loader.SetParam(ipakku.PARAMKEY_APPNAME, name)
-	loader.SetModuleInfoHandler(ipakku.Override.GetModuleInfoImpl())
-	for _, v := range listeners {
-		v.Bind(loader)
-	}
-	return loader
-}
-
 // Loader 模块加载器, 实例化后可实现统一管理模板
 type Loader struct {
-	instanceID string            // 加载器实例ID
-	events     *utypes.SafeMap   // 模块生命周期事件
-	modules    *utypes.SafeMap   // 模块Map表
-	mparams    *utypes.SafeMap   // 保存在模块对象中共享的字段key-value
-	mrecord    ipakku.ModuleInfo // 模块信息记录器
+	instanceID string                    // 加载器实例ID
+	events     *utypes.SafeMap           // 模块生命周期事件
+	modules    *utypes.SafeMap           // 模块Map表
+	mparams    *utypes.SafeMap           // 保存在模块对象中共享的字段key-value
+	mrecord    ipakku.ModuleInfoRecorder // 模块信息记录器
 }
 
-// Loads 初始化模块, 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
+// Loads 初始化模块(自动分析模块依赖), 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
 func (loader *Loader) Loads(mts ...ipakku.Module) {
-	for _, mt := range mts {
-		loader.Load(mt)
+	newMts := loader.dependencySort(mts...)
+	for i := 0; i < len(newMts); i++ {
+		loader.Load(newMts[i])
 	}
 }
 
@@ -67,7 +49,7 @@ func (loader *Loader) Loads(mts ...ipakku.Module) {
 func (loader *Loader) Load(mt ipakku.Module) {
 	moduleOpts := mt.AsModule()
 	moduleName := loader.getModuleName(mt)
-	logs.Infof("> Loading %s start \r\n", moduleName)
+	logs.Infof("> Loading %s Start \r\n", moduleName)
 
 	// doready 模块准备开始加载
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnReady)
@@ -94,7 +76,7 @@ func (loader *Loader) Load(mt ipakku.Module) {
 
 	// doEnd 模块加载结束
 	loader.modules.Put(moduleName, mt)
-	logs.Infof("> Loading %s complete \r\n", moduleName)
+	logs.Infof("> Loading %s Complete \r\n", moduleName)
 	loader.doHandleModuleEvent(mt, ipakku.ModuleEventOnLoaded)
 }
 
@@ -110,7 +92,7 @@ func (loader *Loader) Invoke(name string, method string, params ...interface{}) 
 		}
 		return fun.Call(args), nil
 	}
-	return nil, fmt.Errorf(ipakku.ErrModuleNotFoundStr, name)
+	return nil, fmt.Errorf(ipakku.ERR_MSG_MODULE_NOT_FOUND, name)
 }
 
 // AutoWired 自动注入依赖对象
@@ -153,7 +135,7 @@ func (loader *Loader) GetModuleByName(name string, val interface{}) error {
 	if tmp, ok := loader.modules.Get(name); ok {
 		return reflectutil.SetInterfaceValueUnSafe(val, tmp)
 	}
-	return fmt.Errorf(ipakku.ErrModuleNotFoundStr, name)
+	return fmt.Errorf(ipakku.ERR_MSG_MODULE_NOT_FOUND, name)
 }
 
 // GetModules 获取模块, 模块名字和接口名字一样才能正常获得
@@ -172,11 +154,11 @@ func (loader *Loader) GetModules(val ...interface{}) error {
 	return nil
 }
 
-// SetModuleInfoHandler 设置模块信息记录器, 会自动调用init
-func (loader *Loader) SetModuleInfoHandler(mrecord ipakku.ModuleInfo) {
+// SetModuleInfoRecorder 设置模块信息记录器, 会自动调用init
+func (loader *Loader) SetModuleInfoRecorder(mrecord ipakku.ModuleInfoRecorder) {
 	if nil != mrecord {
 		loader.mrecord = mrecord
-		err := loader.mrecord.Init(loader.GetParam(ipakku.PARAMKEY_APPNAME).ToString("app"))
+		err := loader.mrecord.Init(loader.GetParam(ipakku.PARAMS_KEY_APPNAME).ToString(ipakku.DEFT_VAL_APPNAME))
 		if nil != err {
 			panic(err)
 		}
@@ -186,6 +168,26 @@ func (loader *Loader) SetModuleInfoHandler(mrecord ipakku.ModuleInfo) {
 // GetModuleVersion 获取模块版本号
 func (loader *Loader) GetModuleVersion(name string) string {
 	return loader.mrecord.GetValue(name + ".SetupVer")
+}
+
+// GetApplication 获取当前实例
+func (loader *Loader) GetApplication() ipakku.Application {
+	return loader
+}
+
+// Params 保存实例中的键值对数据
+func (loader *Loader) Params() ipakku.Params {
+	return loader
+}
+
+// Modules 模块操作
+func (loader *Loader) Modules() ipakku.Modules {
+	return loader
+}
+
+// Utils 工具
+func (loader *Loader) Utils() ipakku.Utils {
+	return loader
 }
 
 // setVersion 设置模块版本号 - 模块保留小数两位
@@ -215,37 +217,37 @@ func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleE
 }
 
 // doReady 模块准备
-func (loader *Loader) doReady(moduleName string, opts ipakku.Opts) {
+func (loader *Loader) doReady(moduleId string, opts ipakku.Opts) {
 	if nil != opts.OnReady {
-		logs.Infof("> Execute Module.OnReady \r\n")
+		logs.Infof("> Execute %s.OnReady \r\n", moduleId)
 		opts.OnReady(loader)
 	}
 }
 
 // doSetup 模块安装
-func (loader *Loader) doSetup(moduleName string, opts ipakku.Opts) {
+func (loader *Loader) doSetup(moduleId string, opts ipakku.Opts) {
 	if nil != opts.OnSetup {
-		logs.Infof("> Execute Module.OnSetup \r\n")
+		logs.Infof("> Execute %s.OnSetup \r\n", moduleId)
 		opts.OnSetup()
 	}
-	loader.setVersion(moduleName, opts.Version)
+	loader.setVersion(moduleId, opts.Version)
 }
 
 // doUpdate 模块升级
-func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
+func (loader *Loader) doUpdate(moduleId string, opts ipakku.Opts) {
 	if nil == opts.Updaters {
-		loader.setVersion(moduleName, opts.Version)
+		loader.setVersion(moduleId, opts.Version)
 		return
 	}
 
 	var updaters []ipakku.Updater
 	if updaters = opts.Updaters(loader); len(updaters) == 0 {
-		loader.setVersion(moduleName, opts.Version)
+		loader.setVersion(moduleId, opts.Version)
 		return
 	}
 
 	var execList ipakku.Updaters = make([]ipakku.Updater, 0)
-	if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleName), 64); nil != err {
+	if hv, err := strconv.ParseFloat(loader.GetModuleVersion(moduleId), 64); nil != err {
 		logs.Panicln(err)
 	} else {
 		for i := 0; i < len(updaters); i++ {
@@ -256,28 +258,28 @@ func (loader *Loader) doUpdate(moduleName string, opts ipakku.Opts) {
 	}
 
 	if len(execList) == 0 {
-		loader.setVersion(moduleName, opts.Version)
+		loader.setVersion(moduleId, opts.Version)
 		return
 	}
 
 	sort.Sort(execList)
 	for i := 0; i < len(execList); i++ {
-		logs.Infof("> Execute Module.Update ver=%.3f \r\n", execList[i].Version())
+		logs.Infof("> Execute %s.Update ver=%.3f \r\n", moduleId, execList[i].Version())
 		if err := execList[i].Execute(loader); nil == err {
-			loader.setVersion(moduleName, execList[i].Version())
-			logs.Infof("> Completed Module.Update ver=%.3f \r\n", execList[i].Version())
+			loader.setVersion(moduleId, execList[i].Version())
+			logs.Infof("> Completed %s.Update ver=%.3f \r\n", moduleId, execList[i].Version())
 		} else {
 			logs.Panicln(err)
 		}
 	}
 
-	loader.setVersion(moduleName, opts.Version)
+	loader.setVersion(moduleId, opts.Version)
 }
 
 // doInit 模块初始化
-func (loader *Loader) doInit(moduleName string, opts ipakku.Opts) {
+func (loader *Loader) doInit(moduleId string, opts ipakku.Opts) {
 	if nil != opts.OnInit {
-		logs.Infof("> Execute Module.OnInit \r\n")
+		logs.Infof("> Execute %s.OnInit \r\n", moduleId)
 		opts.OnInit()
 	}
 }
@@ -298,4 +300,29 @@ func (loader *Loader) getModuleName(mt ipakku.Module) string {
 	} else {
 		return moduleName
 	}
+}
+
+// dependencySort 依赖排序
+func (loader *Loader) dependencySort(mts ...ipakku.Module) (res []ipakku.Module) {
+	modules := []strutil.DS_M{}
+	for i := 0; i < len(mts); i++ {
+		if module, err := mutils.GetAutoWiredDependencies(mts[i]); nil != err {
+			logs.Panicln(err)
+		} else {
+			if len(module.Name) == 0 {
+				module.Name = loader.getModuleName(mts[i])
+			}
+			modules = append(modules, module)
+		}
+	}
+
+	sorted := strutil.DependencySorter(modules...)
+	for i := 0; i < len(sorted); i++ {
+		for j := 0; j < len(mts); j++ {
+			if loader.getModuleName(mts[j]) == sorted[i] {
+				res = append(res, mts[j])
+			}
+		}
+	}
+	return
 }
