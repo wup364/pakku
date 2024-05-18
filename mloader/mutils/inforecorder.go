@@ -7,10 +7,10 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// 配置工具-JSON文件实现
+// 模块信息记录器-本地JSON文件实现
 // 依赖包: utypes.Object fileutil
 
-package mloader
+package mutils
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	ipakku.Override.SetModuleInfoImpl(new(InfoRecorder))
+	ipakku.PakkuConf.SetModuleInfoRecorderImplement(new(InfoRecorder))
 }
 
 // InfoRecorder json配置器
@@ -73,17 +73,17 @@ func (config *InfoRecorder) InitConfig(configPath string) error {
 
 // GetValue 读取配置
 func (config *InfoRecorder) GetValue(key string) string {
-	return config.GetModuleInfoRecorder(key).ToString("")
+	return config.GetValueByKey(key).ToString("")
 }
 
 // SetValue 写入配置
 func (config *InfoRecorder) SetValue(key string, value string) error {
-	return config.SetModuleInfoRecorder(key, value)
+	return config.SetValueByKey(key, value)
 }
 
-// GetModuleInfoRecorder 读取key的value信息
+// GetValueByKey 读取key的value信息
 // 返回ModuleInfoRecorderBody对象, 里面的值可能是string或者map
-func (config *InfoRecorder) GetModuleInfoRecorder(key string) (res utypes.Object) {
+func (config *InfoRecorder) GetValueByKey(key string) (res utypes.Object) {
 	config.l.RLock()
 	defer config.l.RUnlock()
 	if len(key) == 0 || config.jsonObject == nil || len(config.jsonObject) == 0 {
@@ -111,20 +111,20 @@ func (config *InfoRecorder) GetModuleInfoRecorder(key string) (res utypes.Object
 		}
 
 		//
-		var _temp interface{}
+		var temp2 interface{}
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			}
 		} else { //
 			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			}
 		}
 
 		// find
-		if _temp != nil {
-			temp = _temp
+		if temp2 != nil {
+			temp = temp2
 		} else {
 			return
 		}
@@ -132,8 +132,8 @@ func (config *InfoRecorder) GetModuleInfoRecorder(key string) (res utypes.Object
 	return
 }
 
-// SetModuleInfoRecorder 保存配置, key value 都为stirng
-func (config *InfoRecorder) SetModuleInfoRecorder(key string, value string) error {
+// SetValueByKey 保存配置, key value 都为stirng
+func (config *InfoRecorder) SetValueByKey(key string, value string) error {
 	if len(key) == 0 || len(value) == 0 {
 		return errors.New("key or value is empty")
 	}
@@ -155,26 +155,26 @@ func (config *InfoRecorder) SetModuleInfoRecorder(key string, value string) erro
 		}
 
 		//
-		var _temp interface{}
+		var temp2 interface{}
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			} else {
-				_temp = make(map[string]interface{})
-				config.jsonObject[keys[i]] = _temp
+				temp2 = make(map[string]interface{})
+				config.jsonObject[keys[i]] = temp2
 			}
 		} else { //
 			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
-				_temp = tp
+				temp2 = tp
 			} else {
-				_temp = make(map[string]interface{})
-				temp.(map[string]interface{})[keys[i]] = _temp
+				temp2 = make(map[string]interface{})
+				temp.(map[string]interface{})[keys[i]] = temp2
 			}
 		}
 
 		// find
-		if _temp != nil {
-			temp = _temp
+		if temp2 != nil {
+			temp = temp2
 		}
 	}
 	return nil

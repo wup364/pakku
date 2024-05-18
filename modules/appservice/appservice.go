@@ -14,30 +14,29 @@ import (
 type AppService struct {
 	service.RPCService
 	service.HTTPService
-	conf ipakku.AppConfig `@autowired:"AppConfig"`
+	conf ipakku.AppConfig `@autowired:""`
 }
 
 // AsModule 作为一个模块加载
 func (service *AppService) AsModule() ipakku.Opts {
 	return ipakku.Opts{
-		Name:        "AppService",
 		Version:     1.0,
 		Description: "AppService module",
-		OnReady: func(mctx ipakku.Loader) {
+		OnReady: func(app ipakku.Application) {
 			if nil != service.HTTPService.AsModule().OnReady {
-				service.HTTPService.AsModule().OnReady(mctx)
+				service.HTTPService.AsModule().OnReady(app)
 			}
 			if nil != service.RPCService.AsModule().OnReady {
-				service.RPCService.AsModule().OnReady(mctx)
+				service.RPCService.AsModule().OnReady(app)
 			}
-			service.HTTPService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
-			service.RPCService.SetDebug(mctx.GetParam("AppService.debug").ToBool(true))
 		},
 	}
 }
 
 // StartHTTP 启动服务
 func (service *AppService) StartHTTP(serviceCfg ipakku.HTTPServiceConfig) {
+	service.HTTPService.SetDebug(serviceCfg.Debug)
+
 	s := serviceCfg.Server
 	if nil == s {
 		s = &http.Server{
@@ -46,13 +45,16 @@ func (service *AppService) StartHTTP(serviceCfg ipakku.HTTPServiceConfig) {
 			MaxHeaderBytes: service.conf.GetConfig(ipakku.CONFKEY_MAXHEADERBYTES).ToInt(1 << 20),
 		}
 	}
+
 	if nil == s.ErrorLog {
 		s.ErrorLog = logs.ErrorLogger()
 	}
+
 	s.Handler = service.GetRouter()
 	if len(serviceCfg.ListenAddr) > 0 {
 		s.Addr = serviceCfg.ListenAddr
 	}
+
 	var err error
 	if len(serviceCfg.CertFile) == 0 || len(serviceCfg.KeyFile) == 0 {
 		logs.Infoln("Server(HTTP) listened in: " + s.Addr)
@@ -61,6 +63,7 @@ func (service *AppService) StartHTTP(serviceCfg ipakku.HTTPServiceConfig) {
 		logs.Infoln("Server(HTTPS) listened in: " + s.Addr)
 		err = s.ListenAndServeTLS(serviceCfg.CertFile, serviceCfg.KeyFile)
 	}
+
 	if nil != err {
 		logs.Panicln(err)
 	}
@@ -68,9 +71,12 @@ func (service *AppService) StartHTTP(serviceCfg ipakku.HTTPServiceConfig) {
 
 // StartRPC 启动服务
 func (service *AppService) StartRPC(serviceCfg ipakku.RPCServiceConfig) {
+	service.RPCService.SetDebug(serviceCfg.Debug)
+
 	if len(serviceCfg.Network) == 0 {
 		serviceCfg.Network = "tcp"
 	}
+
 	l := serviceCfg.Listener
 	if nil == l {
 		var err error

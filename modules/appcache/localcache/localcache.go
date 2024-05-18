@@ -12,6 +12,7 @@
 package localcache
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/wup364/pakku/ipakku"
@@ -19,12 +20,26 @@ import (
 )
 
 func init() {
-	ipakku.Override.RegisterInterfaceImpl(new(CacheManager), "ICache", "local")
+	ipakku.PakkuConf.RegisterPakkuModuleImplement(new(CacheManager), "ICache", "local")
 }
 
 // StructClone 本机cache接口, 用于交换内存数据.
 type StructClone interface {
 	Clone(val interface{}) error
+}
+
+// StructValue 值
+type StructValue struct {
+	Value any
+}
+
+// Clone 本机cache接口, 用于交换内存数据.
+func (sv *StructValue) Clone(val interface{}) error {
+	if uat, ok := val.(*StructValue); ok {
+		uat.Value = sv.Value
+		return nil
+	}
+	return fmt.Errorf("can't support clone %T ", val)
 }
 
 // CacheManager 基于TokenManager实现的缓存管理器
@@ -70,24 +85,108 @@ func (cm *CacheManager) RegLib(clib string, second int64) error {
 	return nil
 }
 
-// Set 向lib库中设置键为key的值tb
-func (cm *CacheManager) Set(clib string, key string, tb interface{}) error {
+// Exists 返回key是否存在
+func (cm *CacheManager) Exists(clib string, key string) (res bool, err error) {
 	defer cm.clibLock.RUnlock()
 	cm.clibLock.RLock()
+
+	if tm, ok := cm.clibs[clib]; !ok {
+		return false, ipakku.ErrCacheLibNotExist
+	} else {
+		_, res = tm.GetTokenBody(key)
+	}
+	return
+}
+
+// Set 向lib库中设置键为key的值
+// args[0] 为缓存值 args[2]如果存在, 则覆盖默认过期时间, 单位秒
+func (cm *CacheManager) Set(clib string, key string, args ...any) error {
+	defer cm.clibLock.RUnlock()
+	cm.clibLock.RLock()
+
 	if len(clib) == 0 {
 		return ipakku.ErrCacheLibNotExist
 	}
-	tm, ok := cm.clibs[clib]
-	if !ok {
+
+	if tm, ok := cm.clibs[clib]; !ok {
 		return ipakku.ErrCacheLibNotExist
+	} else if lx, err := cm.getExpSecond(clib, args...); nil != err {
+		return err
+	} else {
+		tm.PutTokenBody(key, args[0], lx)
+		return nil
 	}
-	lx, ok := cm.libexp[clib]
-	if !ok {
+}
+
+// SetNX 向lib库中设置键为key的值, 当key不存在时设置成功, 并返回true
+// args[0] 为缓存值 args[2]如果存在, 则覆盖默认过期时间, 单位秒
+func (cm *CacheManager) SetNX(clib string, key string, args ...any) (bool, error) {
+	defer cm.clibLock.RUnlock()
+	cm.clibLock.RLock()
+
+	if len(clib) == 0 {
+		return false, ipakku.ErrCacheLibNotExist
+	}
+
+	if tm, ok := cm.clibs[clib]; !ok {
+		return false, ipakku.ErrCacheLibNotExist
+	} else if lx, err := cm.getExpSecond(clib, args...); nil != err {
+		return false, err
+	} else {
+		return tm.PutTokenBodyNX(key, args[0], lx), nil
+	}
+}
+
+// Incrby 指定key以increment的值累加, 返回累加后的值
+// args[0] 为缓存值 args[2]如果存在, 则覆盖默认过期时间, 单位秒
+func (cm *CacheManager) Incrby(clib string, key string, args ...any) (int64, error) {
+	defer cm.clibLock.RUnlock()
+	cm.clibLock.RLock()
+
+	if len(clib) == 0 {
+		return -1, ipakku.ErrCacheLibNotExist
+	}
+
+	var ok bool
+	var tm *TokenManager
+	if tm, ok = cm.clibs[clib]; !ok {
+		return -1, ipakku.ErrCacheLibNotExist
+	}
+
+	// 查询已存在
+	val := args[0].(int64)
+	if oldval, ok := tm.GetTokenBody(key); ok {
+		tmp := oldval.(*StructValue)
+		tmp.Value = tmp.Value.(int64) + val
+		return tmp.Value.(int64), nil
+	}
+
+	// 第一次插入
+	if lx, err := cm.getExpSecond(clib, args...); nil != err {
+		return -1, err
+	} else {
+		val := args[0].(int64)
+		tm.PutTokenBody(key, &StructValue{val}, lx)
+		return val, nil
+	}
+}
+
+// getExpSecond 获取过期时间
+func (cm *CacheManager) getExpSecond(clib string, args ...any) (int64, error) {
+	if len(args) > 1 {
+		if val, ok := args[1].(int64); ok {
+			return val, nil
+		} else if val, ok := args[1].(int); ok {
+			return int64(val), nil
+		} else {
+			return -1, ipakku.ErrCacheArgsTypeError
+		}
+	} else if lx, ok := cm.libexp[clib]; !ok {
 		delete(cm.clibs, clib)
-		return ipakku.ErrCacheLibNotExist
+		return -1, ipakku.ErrCacheLibNotExist
+	} else {
+		return lx, nil
 	}
-	tm.PutTokenBody(key, tb, lx)
-	return nil
 }
 
 // Get 读取缓存信息

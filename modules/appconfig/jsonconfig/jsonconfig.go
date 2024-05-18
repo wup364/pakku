@@ -28,7 +28,7 @@ import (
 
 func init() {
 	// 注册实例实现
-	ipakku.Override.RegisterInterfaceImpl(new(Config), "IConfig", "json")
+	ipakku.PakkuConf.RegisterPakkuModuleImplement(new(Config), "IConfig", "json")
 }
 
 // Config json配置器

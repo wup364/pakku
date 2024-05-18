@@ -16,6 +16,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"os"
@@ -122,6 +123,45 @@ func String2Int(str string, df int) int {
 	return df
 }
 
+// Json2Struct json转对象
+func Json2Struct(jsonStr string, structPointer any) (err error) {
+	if len(jsonStr) == 0 {
+		return
+	}
+	err = json.Unmarshal([]byte(jsonStr), structPointer)
+	return
+}
+
+// StructToJson 对象转json
+func StructToJson(obj any) (res string, err error) {
+	var bt []byte
+	if bt, err = json.Marshal(obj); nil != err {
+		return
+	}
+	res = string(bt)
+	return
+}
+
+// EqualsAny 判断字符在一个数组中存在
+func EqualsAny(str string, arr ...string) bool {
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == str {
+			return true
+		}
+	}
+	return false
+}
+
+// EqualsAnyIgnoreCase 判断字符在一个数组中存在, 护略大小写
+func EqualsAnyIgnoreCase(str string, arr ...string) bool {
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == str || strings.EqualFold(arr[i], str) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetMD5 字符转MD5
 func GetMD5(str string) string {
 	md5Ctx := md5.New()
@@ -187,4 +227,71 @@ func GetPlaceholder(placeholder, joinstr string, len int) (res string) {
 		}
 	}
 	return res
+}
+
+// ToInterface string类型转interface类型
+func ToInterface(input ...string) []interface{} {
+	output := make([]interface{}, len(input))
+	if leni := len(input); leni > 0 {
+		for i := 0; i < leni; i++ {
+			output[i] = input[i]
+		}
+	}
+	return output
+}
+
+// RemoveEmpty 去除空值
+func RemoveEmpty(input ...string) []string {
+	output := make([]string, 0)
+	if len(input) > 0 {
+		for _, str := range input {
+			if len(str) > 0 {
+				output = append(output, str)
+			}
+		}
+	}
+	return output
+}
+
+// RemoveDuplicatesAndEmpty 去重并去空
+func RemoveDuplicatesAndEmpty(input ...string) []string {
+	result := make([]string, 0)
+	if len(input) > 0 {
+		uniqueMap := make(map[string]interface{})
+		for _, val := range input {
+			if len(val) == 0 {
+				continue
+			}
+			if _, ok := uniqueMap[val]; !ok {
+				uniqueMap[val] = nil
+				result = append(result, val)
+			}
+		}
+	}
+	return result
+}
+
+// Contain 是否在数组中包含
+func Contain[T comparable](array []T, test T) bool {
+	if len(array) == 0 {
+		return false
+	}
+	for i := 0; i < len(array); i++ {
+		if array[i] == test {
+			return true
+		}
+	}
+	return false
+}
+
+// ArrayMap 类似java stream.map
+func ArrayMap[T any, R any](array []T, m func(row T) R) (res []R) {
+	if len(array) == 0 {
+		return
+	}
+	res = make([]R, len(array))
+	for i := 0; i < len(array); i++ {
+		res[i] = m(array[i])
+	}
+	return
 }

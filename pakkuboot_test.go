@@ -21,17 +21,20 @@ import (
 
 // TestNewApplication 使用现有的模块, 创建一个http服务
 func TestNewApplication(t *testing.T) {
-	app := NewApplication("app-test"). // 实例化一个application
-						EnableCoreModule().         // 启用核心模块
-						EnableNetModule().          //启用网络服务模块
-						SetLoggerLevel(logs.DEBUG). // 日志级别设置为DEBUG
-						BootStart()                 // 启动实例
+	builder := NewApplication("app-example-basicnetservice") // 实例构建器
+	app := builder.
+		PakkuConfigure().SetLoggerLevel(logs.DEBUG).         // 日志级别设置为DEBUG
+		PakkuModules().EnableAppConfig().EnableAppService(). // 默认模块启用: 配置模块、网络服务模块
+		// CustomModules().AddModule(new(exampleModule)).    // 自定义模块加载
+		// ModuleEvents().Listen("", ipakku.ModuleEventOnLoaded, func(module interface{}, app ipakku.Application) {}).
+		BootStart() // 启动实例
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
-	var service ipakku.AppService
-	if err := app.GetModules(&service); nil != err {
-		logs.Panicln(err)
-	}
+	// var service ipakku.AppService
+	// if err := app.Modules().GetModules(&service); nil != err {
+	// 	logs.Panicln(err)
+	// }
+	service := app.PakkuModules().GetAppService()
 
 	// 设置一个静态页面路径
 	if err := service.SetStaticDIR("/", "./", nil); nil != err {

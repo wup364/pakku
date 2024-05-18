@@ -97,6 +97,20 @@ func (tm *TokenManager) PutTokenBody(token string, tb interface{}, second int64)
 	tm.tokenMap.Put(token, tkb)
 }
 
+// PutTokenBodyNX 参数同PutTokenBody函数, 区别在于当token存在时操作不成功, 返回false
+func (tm *TokenManager) PutTokenBodyNX(token string, tb interface{}, second int64) bool {
+	tkb := tokenObject{
+		O:       tb,
+		regtime: time.Now().UnixNano(),
+	}
+	if second > -1 {
+		tkb.expired = tkb.regtime + second*int64(time.Second)
+	} else {
+		tkb.expired = -1
+	}
+	return tm.tokenMap.PutX(token, tkb) == nil
+}
+
 // GetTokenBody 获取令牌信息
 func (tm *TokenManager) GetTokenBody(tk string) (interface{}, bool) {
 	if val, ok := tm.tokenMap.Get(tk); ok {
