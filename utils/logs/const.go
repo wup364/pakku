@@ -32,12 +32,11 @@ const (
 )
 
 var (
-	loggerLeve       = DEBUG
-	logI             = log.New(os.Stdout, "[INFO] ", log.Ldate|log.Ltime|log.Lmsgprefix)
-	logD             = log.New(os.Stdout, "[DEBUG] ", log.Ldate|log.Ltime|log.Lmsgprefix)
-	logE             = log.New(os.Stderr, "[ERROR] ", log.Ldate|log.Ltime|log.Lmsgprefix|log.Llongfile)
-	logEStack        = log.New(os.Stderr, "", log.Lmsgprefix)
-	errLogStackLevel = 6 // 错误日志打印调用栈长度
+	loggerLeve = DEBUG
+	logI       = log.New(os.Stdout, "[INFO] ", log.Ldate|log.Ltime|log.Lmsgprefix)
+	logD       = log.New(os.Stdout, "[DEBUG] ", log.Ldate|log.Ltime|log.Lmsgprefix)
+	logE       = log.New(os.Stderr, "[ERROR] ", log.Ldate|log.Ltime|log.Lmsgprefix|log.Llongfile)
+	logEStack  = log.New(os.Stderr, "", log.Lmsgprefix)
 )
 
 // SetOutput 设置输出-info, debug, error
@@ -51,13 +50,4 @@ func SetOutput(w io.Writer) {
 // SetLoggerLevel NONE DEBUG INFO ERROR
 func SetLoggerLevel(lv LoggerLeve) {
 	loggerLeve = lv
-}
-
-// SetErrorLogStackLevel 设置错误日志打印调用栈长度
-func SetErrorLogStackLevel(lv int) {
-	if lv <= 0 {
-		errLogStackLevel = 0
-	} else {
-		errLogStackLevel = lv + 2
-	}
 }

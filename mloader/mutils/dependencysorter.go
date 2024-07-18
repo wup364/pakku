@@ -32,8 +32,8 @@ func GetAutoWiredDependencies(ptr ipakku.Module) (reuslt strutil.DS_M, err error
 	if tagvals = reflectutil.GetTagValues(ipakku.STAG_AUTOWIRED, ptr); len(tagvals) == 0 {
 		appendFormAnonymousStruct(ptr, &reuslt)
 	} else {
-		for _, valKey := range tagvals {
-			reuslt.Dependencies = append(reuslt.Dependencies, valKey)
+		if err = appendDependencies(&reuslt, tagvals, ptr); nil != err {
+			return
 		}
 
 		// 匿名嵌套结构体
@@ -71,12 +71,33 @@ func appendFormAnonymousStruct(ptr interface{}, reuslt *strutil.DS_M) (err error
 		}
 
 		// append
-		for _, valKey := range tagvals {
-			reuslt.Dependencies = append(reuslt.Dependencies, valKey)
+		if err = appendDependencies(reuslt, tagvals, newVal); nil != err {
+			return
 		}
 
 		// 递归
 		err = appendFormAnonymousStruct(newVal, reuslt)
 	}
 	return err
+}
+
+// appendDependencies 追加依赖信息
+func appendDependencies(reuslt *strutil.DS_M, tagvals map[string]string, ptr interface{}) (err error) {
+	if len(tagvals) == 0 {
+		return
+	}
+	for field, valKey := range tagvals {
+		if len(valKey) == 0 {
+			var ftype reflect.Type
+			if ftype, err = reflectutil.GetStructFieldType(ptr, field); nil != err {
+				err = fmt.Errorf("autowire field %s is failed, error: %s", field, err.Error())
+				break
+			}
+			reuslt.Dependencies = append(reuslt.Dependencies, ftype.Name())
+		} else {
+			reuslt.Dependencies = append(reuslt.Dependencies, valKey)
+		}
+	}
+
+	return
 }

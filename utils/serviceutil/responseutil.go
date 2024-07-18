@@ -13,9 +13,10 @@ import (
 
 // HTTPResponse 接口返回格式约束
 type HTTPResponse struct {
-	Code string      `json:"code"`
-	Flag string      `json:"flag"`
-	Data interface{} `json:"data"`
+	Code    string      `json:"code"`
+	Flag    string      `json:"flag"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
 // BusinessError 业务异常
@@ -26,8 +27,8 @@ type BusinessError interface {
 }
 
 // SendSuccess 返回成功结果 httpCode=200, code=OK
-func SendSuccess(w http.ResponseWriter, msg interface{}) {
-	SendSuccessResponse(w, http.StatusOK, "OK", msg)
+func SendSuccess(w http.ResponseWriter, data interface{}) {
+	SendSuccessResponse(w, http.StatusOK, "SUCCESS", data)
 }
 
 // SendBusinessError 返回业务错误 httpCode=200,
@@ -41,47 +42,47 @@ func SendBusinessError(w http.ResponseWriter, err error) {
 }
 
 // SendBadRequest 返回400错误, code=BAD_REQUEST
-func SendBadRequest(w http.ResponseWriter, msg interface{}) {
+func SendBadRequest(w http.ResponseWriter, msg string) {
 	SendErrorResponse(w, http.StatusBadRequest, "BAD_REQUEST", msg)
 }
 
 // SendServerError 返回500错误, code=SERVER_ERROR
-func SendServerError(w http.ResponseWriter, msg interface{}) {
+func SendServerError(w http.ResponseWriter, msg string) {
 	SendErrorResponse(w, http.StatusInternalServerError, "SERVER_ERROR", msg)
 }
 
 // SendUnauthorized 返回401错误, code=UNAUTHORIZED
-func SendUnauthorized(w http.ResponseWriter, msg interface{}) {
+func SendUnauthorized(w http.ResponseWriter, msg string) {
 	SendErrorResponse(w, http.StatusUnauthorized, "UNAUTHORIZED", msg)
 }
 
 // SendForbidden 返回403错误, code=FORBIDDEN
-func SendForbidden(w http.ResponseWriter, msg interface{}) {
+func SendForbidden(w http.ResponseWriter, msg string) {
 	SendErrorResponse(w, http.StatusForbidden, "FORBIDDEN", msg)
 }
 
 // SendBusinessErrorAndCode 返回业务错误 httpCode=200, code=errCode参数
-func SendBusinessErrorAndCode(w http.ResponseWriter, errCode string, msg interface{}) {
+func SendBusinessErrorAndCode(w http.ResponseWriter, errCode string, msg string) {
 	SendErrorResponse(w, http.StatusOK, errCode, msg)
 }
 
 // SendSuccessResponse 返回成功结果
-func SendSuccessResponse(w http.ResponseWriter, statusCode int, bizCode string, msg interface{}) {
+func SendSuccessResponse(w http.ResponseWriter, statusCode int, bizCode string, data interface{}) {
 	w.Header().Set("Content-type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
-	w.Write(BuildHttpResponse(bizCode, "T", msg))
+	w.Write(BuildHttpResponse(bizCode, "T", data, ""))
 }
 
 // SendErrorResponse 返回失败结果
-func SendErrorResponse(w http.ResponseWriter, statusCode int, errCode string, msg interface{}) {
+func SendErrorResponse(w http.ResponseWriter, statusCode int, errCode string, msg string) {
 	w.Header().Set("Content-type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
-	w.Write(BuildHttpResponse(errCode, "F", msg))
+	w.Write(BuildHttpResponse(errCode, "F", nil, msg))
 }
 
 // BuildHttpResponse 构建返回json
-func BuildHttpResponse(code string, flag string, str interface{}) []byte {
-	bt, err := json.Marshal(HTTPResponse{Code: code, Flag: flag, Data: str})
+func BuildHttpResponse(code string, flag string, data interface{}, msg string) []byte {
+	bt, err := json.Marshal(HTTPResponse{Code: code, Flag: flag, Data: data, Message: msg})
 	if nil != err {
 		return []byte(err.Error())
 	}

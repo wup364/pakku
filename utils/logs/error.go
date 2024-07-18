@@ -71,14 +71,13 @@ func Errorln(v ...interface{}) {
 
 // logWithStackInfo 打印调用栈信息
 func logWithStackInfo(startStackLevel int) {
-	if errLogStackLevel <= 0 {
-		return
-	}
-	for i := startStackLevel; i < errLogStackLevel; i++ {
+	for i := startStackLevel; ; i++ {
 		if pc, file, line, ok := runtime.Caller(i); ok {
 			fName := runtime.FuncForPC(pc).Name()
 			logEStack.Output(2, fmt.Sprintf("%s\n", fName))
 			logEStack.Output(2, fmt.Sprintf("at \t%s:%d\n", file, line))
+		} else {
+			break
 		}
 	}
 }

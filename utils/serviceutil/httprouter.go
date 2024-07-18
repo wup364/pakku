@@ -387,6 +387,7 @@ func (srt *ServiceRouter) checkInit() {
 	if nil == srt.runtimeError {
 		srt.runtimeError = func(rw http.ResponseWriter, r *http.Request, err interface{}) {
 			SendServerError(rw, fmt.Sprintf("%v", err))
+			logs.Errorln(err)
 		}
 	}
 }

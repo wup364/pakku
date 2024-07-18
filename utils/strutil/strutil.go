@@ -12,6 +12,7 @@
 package strutil
 
 import (
+	"container/list"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/binary"
@@ -142,6 +143,12 @@ func StructToJson(obj any) (res string, err error) {
 	return
 }
 
+// ToJsonIgnoreError 对象转json, 忽略错误
+func ToJsonIgnoreError(obj any) (res string) {
+	res, _ = StructToJson(obj)
+	return
+}
+
 // EqualsAny 判断字符在一个数组中存在
 func EqualsAny(str string, arr ...string) bool {
 	for i := 0; i < len(arr); i++ {
@@ -152,10 +159,31 @@ func EqualsAny(str string, arr ...string) bool {
 	return false
 }
 
-// EqualsAnyIgnoreCase 判断字符在一个数组中存在, 护略大小写
+// EqualsAnyIgnoreCase 判断字符在一个数组中存在, 忽略大小写
 func EqualsAnyIgnoreCase(str string, arr ...string) bool {
 	for i := 0; i < len(arr); i++ {
 		if arr[i] == str || strings.EqualFold(arr[i], str) {
+			return true
+		}
+	}
+	return false
+}
+
+// StartsWithAny 判断字符以数组中任意一条数据开头
+func StartsWithAny(str string, arr ...string) bool {
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == str || strings.HasPrefix(str, arr[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// StartsWithAnyIgnoreCase 判断字符以数组中任意一条数据开头, 忽略大小写
+func StartsWithAnyIgnoreCase(str string, arr ...string) bool {
+	strLower := strings.ToLower(str)
+	for i := 0; i < len(arr); i++ {
+		if strings.EqualFold(arr[i], strLower) || strings.HasPrefix(strLower, strings.ToLower(arr[i])) {
 			return true
 		}
 	}
@@ -294,4 +322,16 @@ func ArrayMap[T any, R any](array []T, m func(row T) R) (res []R) {
 		res[i] = m(array[i])
 	}
 	return
+}
+
+// List2Array list对象转数组
+func List2Array(list *list.List) []interface{} {
+	if list.Len() == 0 {
+		return nil
+	}
+	var arr []interface{}
+	for e := list.Front(); e != nil; e = e.Next() {
+		arr = append(arr, e.Value)
+	}
+	return arr
 }

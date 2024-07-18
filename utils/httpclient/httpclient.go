@@ -72,7 +72,7 @@ func Post(url string, params map[string]string, headers map[string]string) (*htt
 }
 
 // PostJSON 通过Post Json 内容发送请求
-func PostJSON(client *http.Client, method, url string, params interface{}, headers map[string]string) (*http.Response, error) {
+func PostJSON(method, url string, params interface{}, headers map[string]string) (*http.Response, error) {
 	return Request4JSON(DefaultClient, method, url, params, headers)
 }
 
