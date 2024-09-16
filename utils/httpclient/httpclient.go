@@ -20,11 +20,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/wup364/pakku/utils/constants/httpheaders"
+	"github.com/wup364/pakku/utils/constants/mediatypes"
 	"github.com/wup364/pakku/utils/strutil"
 )
 
 // DefaultClient 默认http client
-var DefaultClient = &http.Client{Timeout: time.Second * time.Duration(30)}
+var DefaultClient = &http.Client{Timeout: time.Millisecond}
 
 // BuildURLWithMap 使用Map结构构件url请求参数
 // {key:value} => /url/xxx?key=value
@@ -63,12 +65,12 @@ func BuildURLWithArray(url string, params [][]string) string {
 
 // Get Get请求
 func Get(url string, params map[string]string, headers map[string]string) (*http.Response, error) {
-	return Request4URL(DefaultClient, http.MethodGet, url, params, headers)
+	return Request4Urlencoded(DefaultClient, http.MethodGet, url, params, headers)
 }
 
 // Post Post请求
 func Post(url string, params map[string]string, headers map[string]string) (*http.Response, error) {
-	return Request4URL(DefaultClient, http.MethodPost, url, params, headers)
+	return Request4Urlencoded(DefaultClient, http.MethodPost, url, params, headers)
 }
 
 // PostJSON 通过Post Json 内容发送请求
@@ -76,9 +78,9 @@ func PostJSON(method, url string, params interface{}, headers map[string]string)
 	return Request4JSON(DefaultClient, method, url, params, headers)
 }
 
-// Request4URL 发送请求, 认使用 application/x-www-form-urlencoded 方式发送请求
-func Request4URL(client *http.Client, method, url string, params, headers map[string]string) (*http.Response, error) {
-	return DoRequest(client, method, "application/x-www-form-urlencoded", BuildURLWithMap(url, params), nil, headers)
+// Request4Urlencoded 发送请求, 认使用 application/x-www-form-urlencoded 方式发送请求
+func Request4Urlencoded(client *http.Client, method, url string, params, headers map[string]string) (*http.Response, error) {
+	return Request(client, method, mediatypes.APPLICATION_FORM_URLENCODED, BuildURLWithMap(url, params), nil, headers)
 }
 
 // Request4JSON 通过 Json 内容发送请求
@@ -87,7 +89,7 @@ func Request4JSON(client *http.Client, method, url string, params interface{}, h
 	if query, err := json.Marshal(params); err != nil {
 		return nil, err
 	} else {
-		return DoRequest(client, method, "application/json;charset=utf-8", url, bytes.NewBuffer(query), headers)
+		return Request(client, method, mediatypes.APPLICATION_JSON_UTF8, url, bytes.NewBuffer(query), headers)
 	}
 }
 
@@ -97,7 +99,7 @@ func PostFile(url, filePath string, headers map[string]string) (*http.Response, 
 		return nil, err
 	} else {
 		defer reader.Close()
-		return DoUploadFile(DefaultClient, http.MethodPost, url, reader, headers, "", strutil.GetPathName(filePath))
+		return UploadFile(DefaultClient, http.MethodPost, url, reader, headers, "", strutil.GetPathName(filePath))
 	}
 }
 
@@ -107,12 +109,12 @@ func PutFile(url, filePath string, headers map[string]string) (*http.Response, e
 		return nil, err
 	} else {
 		defer reader.Close()
-		return DoUploadFile(DefaultClient, http.MethodPut, url, reader, headers, "", strutil.GetPathName(filePath))
+		return UploadFile(DefaultClient, http.MethodPut, url, reader, headers, "", strutil.GetPathName(filePath))
 	}
 }
 
-// DoUploadFile 上传文件文件 form-data
-func DoUploadFile(client *http.Client, method, url string, reader io.Reader, headers map[string]string, fieldname, filename string) (*http.Response, error) {
+// UploadFile 上传文件文件 form-data
+func UploadFile(client *http.Client, method, url string, reader io.Reader, headers map[string]string, fieldname, filename string) (*http.Response, error) {
 	bodyBuf := bytes.NewBufferString("")
 	bodyWriter := multipart.NewWriter(bodyBuf)
 	if len(fieldname) == 0 {
@@ -124,22 +126,22 @@ func DoUploadFile(client *http.Client, method, url string, reader io.Reader, hea
 	//
 	boundary := bodyWriter.Boundary()
 	body := io.MultiReader(bodyBuf, reader, bytes.NewBufferString("\r\n--"+boundary+"--\r\n"))
-	return DoRequest(client, method, "multipart/form-data; boundary="+boundary, url, body, headers)
+	return Request(client, method, mediatypes.MULTIPART_FORM_DATA+"; boundary="+boundary, url, body, headers)
 }
 
-// DoRequest 发送请求(client, 请求方式, Content-Type, url)
-func DoRequest(client *http.Client, method, contentType, url string, content io.Reader, header map[string]string) (*http.Response, error) {
+// Request 发送请求(client, 请求方式, Content-Type, url)
+func Request(client *http.Client, method, contentType, url string, content io.Reader, header map[string]string) (*http.Response, error) {
 	// build request method
 	if req, err := http.NewRequest(method, url, content); err != nil {
 		return nil, err
 	} else {
-		if len(contentType) > 0 {
-			req.Header.Set("Content-Type", contentType)
-		}
 		if len(header) > 0 {
 			for k, v := range header {
 				req.Header.Set(k, v)
 			}
+		}
+		if len(contentType) > 0 {
+			req.Header.Set(httpheaders.CONTENT_TYPE, contentType)
 		}
 		return client.Do(req)
 	}

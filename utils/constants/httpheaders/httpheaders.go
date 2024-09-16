@@ -1,0 +1,75 @@
+// Copyright (C) 2024 WuPeng <wup364@outlook.com>.
+// Use of this source code is governed by an MIT-style.
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software" to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// http 头信息
+package httpheaders
+
+const (
+	ACCEPT                           = "Accept"
+	ACCEPT_CHARSET                   = "Accept-Charset"
+	ACCEPT_ENCODING                  = "Accept-Encoding"
+	ACCEPT_LANGUAGE                  = "Accept-Language"
+	ACCEPT_PATCH                     = "Accept-Patch"
+	ACCEPT_RANGES                    = "Accept-Ranges"
+	ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials"
+	ACCESS_CONTROL_ALLOW_HEADERS     = "Access-Control-Allow-Headers"
+	ACCESS_CONTROL_ALLOW_METHODS     = "Access-Control-Allow-Methods"
+	ACCESS_CONTROL_ALLOW_ORIGIN      = "Access-Control-Allow-Origin"
+	ACCESS_CONTROL_EXPOSE_HEADERS    = "Access-Control-Expose-Headers"
+	ACCESS_CONTROL_MAX_AGE           = "Access-Control-Max-Age"
+	ACCESS_CONTROL_REQUEST_HEADERS   = "Access-Control-Request-Headers"
+	ACCESS_CONTROL_REQUEST_METHOD    = "Access-Control-Request-Method"
+	AGE                              = "Age"
+	ALLOW                            = "Allow"
+	AUTHORIZATION                    = "Authorization"
+	CACHE_CONTROL                    = "Cache-Control"
+	CONNECTION                       = "Connection"
+	CONTENT_ENCODING                 = "Content-Encoding"
+	CONTENT_DISPOSITION              = "Content-Disposition"
+	CONTENT_LANGUAGE                 = "Content-Language"
+	CONTENT_LENGTH                   = "Content-Length"
+	CONTENT_LOCATION                 = "Content-Location"
+	CONTENT_RANGE                    = "Content-Range"
+	CONTENT_TYPE                     = "Content-Type"
+	COOKIE                           = "Cookie"
+	DATE                             = "Date"
+	ETAG                             = "ETag"
+	EXPECT                           = "Expect"
+	EXPIRES                          = "Expires"
+	FROM                             = "From"
+	HOST                             = "Host"
+	IF_MATCH                         = "If-Match"
+	IF_MODIFIED_SINCE                = "If-Modified-Since"
+	IF_NONE_MATCH                    = "If-None-Match"
+	IF_RANGE                         = "If-Range"
+	IF_UNMODIFIED_SINCE              = "If-Unmodified-Since"
+	LAST_MODIFIED                    = "Last-Modified"
+	LINK                             = "Link"
+	LOCATION                         = "Location"
+	MAX_FORWARDS                     = "Max-Forwards"
+	ORIGIN                           = "Origin"
+	PRAGMA                           = "Pragma"
+	PROXY_AUTHENTICATE               = "Proxy-Authenticate"
+	PROXY_AUTHORIZATION              = "Proxy-Authorization"
+	RANGE                            = "Range"
+	REFERER                          = "Referer"
+	RETRY_AFTER                      = "Retry-After"
+	SERVER                           = "Server"
+	SET_COOKIE                       = "Set-Cookie"
+	SET_COOKIE2                      = "Set-Cookie2"
+	TE                               = "TE"
+	TRAILER                          = "Trailer"
+	TRANSFER_ENCODING                = "Transfer-Encoding"
+	UPGRADE                          = "Upgrade"
+	USER_AGENT                       = "User-Agent"
+	VARY                             = "Vary"
+	VIA                              = "Via"
+	WARNING                          = "Warning"
+	WWW_AUTHENTICATE                 = "WWW-Authenticate"
+)

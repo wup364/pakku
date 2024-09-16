@@ -47,15 +47,6 @@ func TestGetSHA256(t *testing.T) {
 	fmt.Println(GetMD5(GetSHA256("DN101@4cbc16e9a1e02bb169b4629a0f104dc7")))
 }
 
-func TestSqlConditionConcatForWhere(t *testing.T) {
-	sql := "SELECT * FROM TABLE"
-	newsql := SqlConditionConcatForWhere(sql, "AND", []string{
-		"STATUS = ?",
-		"NAME like ?",
-	}, "statusval", "")
-	fmt.Println(newsql)
-}
-
 func TestDependencySorter(t *testing.T) {
 	moduleA := DS_M{Name: "A", Dependencies: []string{"B", "C"}}
 	moduleB := DS_M{Name: "B", Dependencies: []string{"C"}}

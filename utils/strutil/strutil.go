@@ -15,6 +15,7 @@ import (
 	"container/list"
 	"crypto/md5"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -126,20 +127,21 @@ func String2Int(str string, df int) int {
 
 // Json2Struct json转对象
 func Json2Struct(jsonStr string, structPointer any) (err error) {
-	if len(jsonStr) == 0 {
-		return
+	if len(jsonStr) > 0 {
+		err = json.Unmarshal([]byte(jsonStr), structPointer)
 	}
-	err = json.Unmarshal([]byte(jsonStr), structPointer)
 	return
 }
 
 // StructToJson 对象转json
 func StructToJson(obj any) (res string, err error) {
-	var bt []byte
-	if bt, err = json.Marshal(obj); nil != err {
-		return
+	if nil != obj {
+		var bt []byte
+		if bt, err = json.Marshal(obj); nil != err {
+			return
+		}
+		res = string(bt)
 	}
-	res = string(bt)
 	return
 }
 
@@ -179,11 +181,32 @@ func StartsWithAny(str string, arr ...string) bool {
 	return false
 }
 
+// EndsWithAny 判断字符以数组中任意一条数据开头
+func EndsWithAny(str string, arr ...string) bool {
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == str || strings.HasSuffix(str, arr[i]) {
+			return true
+		}
+	}
+	return false
+}
+
 // StartsWithAnyIgnoreCase 判断字符以数组中任意一条数据开头, 忽略大小写
 func StartsWithAnyIgnoreCase(str string, arr ...string) bool {
 	strLower := strings.ToLower(str)
 	for i := 0; i < len(arr); i++ {
 		if strings.EqualFold(arr[i], strLower) || strings.HasPrefix(strLower, strings.ToLower(arr[i])) {
+			return true
+		}
+	}
+	return false
+}
+
+// EndsWithAnyIgnoreCase 判断字符以数组中任意一条数据结尾, 忽略大小写
+func EndsWithAnyIgnoreCase(str string, arr ...string) bool {
+	strLower := strings.ToLower(str)
+	for i := 0; i < len(arr); i++ {
+		if strings.EqualFold(arr[i], strLower) || strings.HasSuffix(strLower, strings.ToLower(arr[i])) {
 			return true
 		}
 	}
@@ -202,6 +225,25 @@ func GetSHA256(str string) string {
 	hx := sha256.New()
 	hx.Write([]byte(str))
 	return hex.EncodeToString(hx.Sum(nil))
+}
+
+// EncodeToBase64 获取base64字符
+func EncodeToBase64(data string) string {
+	return base64.StdEncoding.EncodeToString([]byte(data))
+}
+
+// DecodeBase64ToByte base64字符转字节
+func DecodeBase64ToByte(data string) []byte {
+	if sDec, err := base64.StdEncoding.DecodeString(data); err != nil {
+		return nil
+	} else {
+		return sDec
+	}
+}
+
+// DecodeBase64ToString base64字符转字符
+func DecodeBase64ToString(data string) string {
+	return string(DecodeBase64ToByte(data))
 }
 
 // GetMachineID 放回机器唯一标识符
