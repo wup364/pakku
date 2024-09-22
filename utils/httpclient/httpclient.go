@@ -26,7 +26,7 @@ import (
 )
 
 // DefaultClient 默认http client
-var DefaultClient = &http.Client{Timeout: time.Second}
+var DefaultClient = &http.Client{Timeout: time.Minute}
 
 // BuildURLWithMap 使用Map结构构件url请求参数
 // {key:value} => /url/xxx?key=value
