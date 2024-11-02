@@ -300,8 +300,8 @@ func GetPlaceholder(placeholder, joinstr string, len int) (res string) {
 }
 
 // ToInterface string类型转interface类型
-func ToInterface(input ...string) []interface{} {
-	output := make([]interface{}, len(input))
+func ToInterface(input ...string) []any {
+	output := make([]any, len(input))
 	if leni := len(input); leni > 0 {
 		for i := 0; i < leni; i++ {
 			output[i] = input[i]
@@ -327,7 +327,7 @@ func RemoveEmpty(input ...string) []string {
 func RemoveDuplicatesAndEmpty(input ...string) []string {
 	result := make([]string, 0)
 	if len(input) > 0 {
-		uniqueMap := make(map[string]interface{})
+		uniqueMap := make(map[string]any)
 		for _, val := range input {
 			if len(val) == 0 {
 				continue
@@ -367,11 +367,11 @@ func ArrayMap[T any, R any](array []T, m func(row T) R) (res []R) {
 }
 
 // List2Array list对象转数组
-func List2Array(list *list.List) []interface{} {
+func List2Array(list *list.List) []any {
 	if list.Len() == 0 {
 		return nil
 	}
-	var arr []interface{}
+	var arr []any
 	for e := list.Front(); e != nil; e = e.Next() {
 		arr = append(arr, e.Value)
 	}

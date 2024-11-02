@@ -43,7 +43,7 @@ type RouterConfig struct {
 	ToLowerCase bool
 
 	// HandlerFunc 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
-	HandlerFunc [][]interface{}
+	HandlerFunc [][]any
 }
 
 // HTTPService HTTP服务
@@ -98,7 +98,7 @@ func (service *HTTPService) Any(url string, fun HandlerFunc) error {
 
 // BulkRouters 批量注册路由, 指定一个前缀url
 // routers: 需要注册的处理函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
-func (service *HTTPService) BulkRouters(url string, toLowerCase bool, routers [][]interface{}) error {
+func (service *HTTPService) BulkRouters(url string, toLowerCase bool, routers [][]any) error {
 	for _, val := range routers {
 		valLen := len(val)
 		// 执行函数取最后一个参数
@@ -131,7 +131,7 @@ func (service *HTTPService) AsRouter(url string, router AsRouter) error {
 }
 
 // getFunctionName getFunctionName
-func (service *HTTPService) getFunctionName(fun interface{}) string {
+func (service *HTTPService) getFunctionName(fun any) string {
 	fn := reflectutil.GetFunctionName(fun, '.')
 	fm := strings.Index(fn, "-")
 	if fm > -1 {

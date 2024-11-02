@@ -26,7 +26,7 @@ func TestNewApplication(t *testing.T) {
 		PakkuConfigure().SetLoggerLevel(logs.DEBUG).         // 日志级别设置为DEBUG
 		PakkuModules().EnableAppConfig().EnableAppService(). // 默认模块启用: 配置模块、网络服务模块
 		// CustomModules().AddModule(new(exampleModule)).    // 自定义模块加载
-		// ModuleEvents().Listen("", ipakku.ModuleEventOnLoaded, func(module interface{}, app ipakku.Application) {}).
+		// ModuleEvents().Listen("", ipakku.ModuleEventOnLoaded, func(module any, app ipakku.Application) {}).
 		BootStart() // 启动实例
 
 	// 获取内部的一个模块, 这里使用 AppService 用于开启一个服务

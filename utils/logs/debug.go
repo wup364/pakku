@@ -27,21 +27,21 @@ func SetDebugPrefix(prefix string) {
 }
 
 // Debug Debug
-func Debug(v ...interface{}) {
+func Debug(v ...any) {
 	if loggerLeve >= DEBUG {
 		logD.Output(2, fmt.Sprint(v...))
 	}
 }
 
 // Debugf Debugf
-func Debugf(format string, v ...interface{}) {
+func Debugf(format string, v ...any) {
 	if loggerLeve >= DEBUG {
 		logD.Output(2, fmt.Sprintf(format, v...))
 	}
 }
 
 // Debugln Debugln
-func Debugln(v ...interface{}) {
+func Debugln(v ...any) {
 	if loggerLeve >= DEBUG {
 		logD.Output(2, fmt.Sprintln(v...))
 	}

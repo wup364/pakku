@@ -12,19 +12,19 @@ func init() {
 
 // NewAppLocalEvent NewAppLocalEvent
 func NewAppLocalEvent() *AppLocalEvent {
-	return &AppLocalEvent{smap: utypes.NewSafeMap()}
+	return &AppLocalEvent{smap: utypes.NewSafeMap[string, []ipakku.EventHandle]()}
 }
 
 // AppLocalEvent 本机事件, 同步操作, 有结果返回
 type AppLocalEvent struct {
-	smap *utypes.SafeMap
+	smap *utypes.SafeMap[string, []ipakku.EventHandle]
 }
 
 // PublishSyncEvent PublishSyncEvent
-func (ev *AppLocalEvent) PublishSyncEvent(group string, name string, val interface{}) (err error) {
+func (ev *AppLocalEvent) PublishSyncEvent(group string, name string, val any) (err error) {
 	var eventFuncs []ipakku.EventHandle
 	if fun, ok := ev.smap.Get(group + name); ok {
-		eventFuncs = fun.([]ipakku.EventHandle)
+		eventFuncs = fun
 	} else {
 		logs.Errorf("event unregistered: group=%s, name=%s \r\n", group, name)
 		return ipakku.ErrSyncEventUnregistered
@@ -46,7 +46,7 @@ func (ev *AppLocalEvent) ConsumerSyncEvent(group string, name string, fun ipakku
 	}
 	var eventFuncs []ipakku.EventHandle
 	if val, ok := ev.smap.Get(group + name); ok && nil != val {
-		eventFuncs = val.([]ipakku.EventHandle)
+		eventFuncs = val
 	} else {
 		eventFuncs = make([]ipakku.EventHandle, 0)
 	}
@@ -60,7 +60,7 @@ func (ev *AppLocalEvent) Init(conf ipakku.AppConfig) error {
 }
 
 // PublishEvent PublishEvent
-func (ev *AppLocalEvent) PublishEvent(group string, name string, val interface{}) error {
+func (ev *AppLocalEvent) PublishEvent(group string, name string, val any) error {
 	return ipakku.ErrEventMethodUnsupported
 }
 

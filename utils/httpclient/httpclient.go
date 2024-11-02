@@ -74,7 +74,7 @@ func Post(url string, params map[string]string, headers map[string]string) (*htt
 }
 
 // PostJSON 通过Post Json 内容发送请求
-func PostJSON(method, url string, params interface{}, headers map[string]string) (*http.Response, error) {
+func PostJSON(method, url string, params any, headers map[string]string) (*http.Response, error) {
 	return Request4JSON(DefaultClient, method, url, params, headers)
 }
 
@@ -84,7 +84,7 @@ func Request4Urlencoded(client *http.Client, method, url string, params, headers
 }
 
 // Request4JSON 通过 Json 内容发送请求
-func Request4JSON(client *http.Client, method, url string, params interface{}, headers map[string]string) (*http.Response, error) {
+func Request4JSON(client *http.Client, method, url string, params any, headers map[string]string) (*http.Response, error) {
 	// build query
 	if query, err := json.Marshal(params); err != nil {
 		return nil, err

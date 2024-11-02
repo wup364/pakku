@@ -20,7 +20,7 @@ import (
 )
 
 // GetFunctionName 获取函数名称
-func GetFunctionName(i interface{}, seps ...rune) string {
+func GetFunctionName(i any, seps ...rune) string {
 	fn := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 	// 用 seps 进行分割
 	fields := strings.FieldsFunc(fn, func(sep rune) bool {
@@ -39,7 +39,7 @@ func GetFunctionName(i interface{}, seps ...rune) string {
 }
 
 // GetTagValues 获取结构体, 含有tagName的字段和值
-func GetTagValues(tagName string, obj interface{}) (rs map[string]string) {
+func GetTagValues(tagName string, obj any) (rs map[string]string) {
 	rs = make(map[string]string)
 	if fields := GetStructFields(obj); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
@@ -58,7 +58,7 @@ func GetTagValues(tagName string, obj interface{}) (rs map[string]string) {
 }
 
 // GetTagFieldName 获取结构体, 含有tagName的字段
-func GetTagFieldName(tagName string, ptr interface{}) (rs []string) {
+func GetTagFieldName(tagName string, ptr any) (rs []string) {
 	if fields := GetStructFields(ptr); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
 			if s := string(fields[i].Tag); s == tagName || strings.HasPrefix(s, tagName) {
@@ -70,7 +70,7 @@ func GetTagFieldName(tagName string, ptr interface{}) (rs []string) {
 }
 
 // GetAnonymousField 获取匿名结构体字段
-func GetAnonymousField(obj interface{}) (res []reflect.StructField) {
+func GetAnonymousField(obj any) (res []reflect.StructField) {
 	if fields := GetStructFields(obj); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
 			if fields[i].Anonymous {
@@ -82,7 +82,7 @@ func GetAnonymousField(obj interface{}) (res []reflect.StructField) {
 }
 
 // GetAnonymousOrNoneTypeNameField 获取匿名和未命名嵌套结构体字段
-func GetAnonymousOrNoneTypeNameField(obj interface{}) (res []reflect.StructField) {
+func GetAnonymousOrNoneTypeNameField(obj any) (res []reflect.StructField) {
 	if fields := GetStructFields(obj); len(fields) > 0 {
 		for i := 0; i < len(fields); i++ {
 			if !fields[i].Anonymous {
@@ -97,7 +97,7 @@ func GetAnonymousOrNoneTypeNameField(obj interface{}) (res []reflect.StructField
 }
 
 // GetStructFields 获取结构体的字段
-func GetStructFields(obj interface{}) (res []reflect.StructField) {
+func GetStructFields(obj any) (res []reflect.StructField) {
 	t := GetNotPtrRefType(obj)
 	for i := 0; i < t.NumField(); i++ {
 		res = append(res, t.Field(i))
@@ -106,7 +106,7 @@ func GetStructFields(obj interface{}) (res []reflect.StructField) {
 }
 
 // GetNotPtrRefType 获取结构体的字段类型
-func GetNotPtrRefType(obj interface{}) reflect.Type {
+func GetNotPtrRefType(obj any) reflect.Type {
 	var t reflect.Type
 	if v, ok := obj.(reflect.Type); ok {
 		t = v
@@ -126,7 +126,7 @@ func GetNotPtrRefType(obj interface{}) reflect.Type {
 }
 
 // GetStructFieldType 获取结构体的类型
-func GetStructFieldType(obj interface{}, fieldName string) (reflect.Type, error) {
+func GetStructFieldType(obj any, fieldName string) (reflect.Type, error) {
 	t := GetNotPtrRefType(obj)
 	if t.Kind() != reflect.Struct {
 		return nil, errors.New("only struct are supported, but input type is: " + t.Kind().String())
@@ -138,7 +138,7 @@ func GetStructFieldType(obj interface{}, fieldName string) (reflect.Type, error)
 }
 
 // GetStructFieldRefValue 获取结构体的值
-func GetStructFieldRefValue(src interface{}, fieldName string) (reflect.Value, error) {
+func GetStructFieldRefValue(src any, fieldName string) (reflect.Value, error) {
 	if err := assertionObjectType(src, true, reflect.Struct); nil != err {
 		return reflect.Value{}, err
 	}
@@ -149,7 +149,7 @@ func GetStructFieldRefValue(src interface{}, fieldName string) (reflect.Value, e
 }
 
 // SetStructFieldValue 给结构体里内指定的成员变量赋值
-func SetStructFieldValue(dstStruct interface{}, fieldName string, val interface{}) error {
+func SetStructFieldValue(dstStruct any, fieldName string, val any) error {
 	if err := assertionObjectType(dstStruct, true, reflect.Struct); nil != err {
 		return err
 	}
@@ -165,7 +165,7 @@ func SetStructFieldValue(dstStruct interface{}, fieldName string, val interface{
 }
 
 // SetStructFieldValueUnSafe 给结构体里的成员字段赋值 - 可以设置私有值
-func SetStructFieldValueUnSafe(dstStruct interface{}, targetField string, obj interface{}) error {
+func SetStructFieldValueUnSafe(dstStruct any, targetField string, obj any) error {
 	if err := assertionObjectType(dstStruct, true, reflect.Struct); nil != err {
 		return err
 	}
@@ -180,7 +180,7 @@ func SetStructFieldValueUnSafe(dstStruct interface{}, targetField string, obj in
 }
 
 // SetInterfaceValueUnSafe 给接口类型的src赋值val
-func SetInterfaceValueUnSafe(dst interface{}, val interface{}) error {
+func SetInterfaceValueUnSafe(dst any, val any) error {
 	if err := assertionObjectType(dst, true, reflect.Interface); nil != err {
 		return err
 	}
@@ -195,7 +195,7 @@ func SetInterfaceValueUnSafe(dst interface{}, val interface{}) error {
 }
 
 // Invoke 调用src里的方法, 返回 []reflect.Value
-func Invoke(src interface{}, method string, params ...interface{}) []reflect.Value {
+func Invoke(src any, method string, params ...any) []reflect.Value {
 	args := make([]reflect.Value, len(params))
 	if len(params) > 0 {
 		for i, temp := range params {
@@ -206,7 +206,7 @@ func Invoke(src interface{}, method string, params ...interface{}) []reflect.Val
 }
 
 // assertionObjectType 判断输入对象类型
-func assertionObjectType(inputObj interface{}, isPointer bool, types ...reflect.Kind) error {
+func assertionObjectType(inputObj any, isPointer bool, types ...reflect.Kind) error {
 	var st reflect.Type
 	if reftp, ok := inputObj.(reflect.Type); ok {
 		st = reftp

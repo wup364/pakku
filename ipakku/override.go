@@ -50,7 +50,7 @@ var PakkuConf = pakkuConfFuc{
 var moduleInfoImpl ModuleInfoRecorder
 
 // implements 所有的ixxx.go实现实例, 结构: { ixxx: map[name]implement }
-var implements = utypes.NewSafeMap()
+var implements = utypes.NewSafeMap[string, *utypes.SafeMap[string, any]]()
 
 // pakkuConfFuc 重载函数
 type pakkuConfFuc struct {
@@ -58,13 +58,13 @@ type pakkuConfFuc struct {
 	SetPakkuModuleImplement func(param ParamSetter, interfaceName, name string)
 
 	// GetPakkuModuleImplement 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
-	GetPakkuModuleImplement func(interfaceName, name, defaultName string) interface{}
+	GetPakkuModuleImplement func(interfaceName, name, defaultName string) any
 
 	// RegisterPakkuModuleImplement 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
-	RegisterPakkuModuleImplement func(val interface{}, interfaceName, name string)
+	RegisterPakkuModuleImplement func(val any, interfaceName, name string)
 
 	// AutowirePakkuModuleImplement 多个相同接口下, 设置自动注入接口的实例名称
-	AutowirePakkuModuleImplement func(param ParamGetter, name interface{}, defaultName string) error
+	AutowirePakkuModuleImplement func(param ParamGetter, name any, defaultName string) error
 
 	// SetModuleInfoRecorderImplement 模块信息记录实现方法
 	SetModuleInfoRecorderImplement func(val ModuleInfoRecorder)
@@ -84,18 +84,18 @@ func doGetModuleInfoRecorderImplement() ModuleInfoRecorder {
 }
 
 // doGetImplementsByInterface 根据接口名字查找所有实现
-func doGetImplementsByInterface(interfaceName string) *utypes.SafeMap {
+func doGetImplementsByInterface(interfaceName string) *utypes.SafeMap[string, any] {
 	if val, ok := implements.Get(interfaceName); ok {
-		return val.(*utypes.SafeMap)
+		return val
 	} else {
-		newType := utypes.NewSafeMap()
+		newType := utypes.NewSafeMap[string, any]()
 		implements.Put(interfaceName, newType)
 		return newType
 	}
 }
 
 // doGetPakkuModuleImplement 根据接口名字+(实例名字 || 默认实例名字), 获取具体实现对象
-func doGetPakkuModuleImplement(interfaceName, implName, defaultImplName string) interface{} {
+func doGetPakkuModuleImplement(interfaceName, implName, defaultImplName string) any {
 	its := doGetImplementsByInterface(interfaceName)
 	if val, ok := its.Get(implName); ok {
 		return val
@@ -106,12 +106,12 @@ func doGetPakkuModuleImplement(interfaceName, implName, defaultImplName string) 
 }
 
 // doRegisterPakkuModuleImplement 添加接口实现实例, interfaceName 接口名字需要和接口本身一致
-func doRegisterPakkuModuleImplement(val interface{}, interfaceName, name string) {
+func doRegisterPakkuModuleImplement(val any, interfaceName, name string) {
 	doGetImplementsByInterface(interfaceName).Put(name, val)
 }
 
 // doAutowirePakkuModuleImplement 多个相同接口下, 设置自动注入接口的实例名称
-func doAutowirePakkuModuleImplement(param ParamGetter, name interface{}, defaultName string) error {
+func doAutowirePakkuModuleImplement(param ParamGetter, name any, defaultName string) error {
 	var reft reflect.Type
 	if reft = reflect.TypeOf(name); reft.Kind() != reflect.Ptr || reft.Elem().Kind() != reflect.Interface {
 		return errors.New("only pointer interface are supported")

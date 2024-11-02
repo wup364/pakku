@@ -20,7 +20,7 @@ import (
 )
 
 // AutoWired 自动注入依赖
-func AutoWired(ptr interface{}, app ipakku.Application) (err error) {
+func AutoWired(ptr any, app ipakku.Application) (err error) {
 	// 仅支持指针类型结构体
 	if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("only pointer object '%s' is supported", ipakku.STAG_AUTOWIRED)
@@ -41,7 +41,7 @@ func AutoWired(ptr interface{}, app ipakku.Application) (err error) {
 }
 
 // autoWiredAnonymousStruct 自动注入匿名嵌套结构体
-func autoWiredAnonymousStruct(ptr interface{}, app ipakku.Application) (err error) {
+func autoWiredAnonymousStruct(ptr any, app ipakku.Application) (err error) {
 	var fields []reflect.StructField
 	if fields = reflectutil.GetAnonymousOrNoneTypeNameField(ptr); len(fields) == 0 {
 		return
@@ -82,7 +82,7 @@ func autoWiredAnonymousStruct(ptr interface{}, app ipakku.Application) (err erro
 }
 
 // doAutowireFields 执行对象下的字段自动注入
-func doAutowireFields(ptr interface{}, tagvals map[string]string, app ipakku.Application) (err error) {
+func doAutowireFields(ptr any, tagvals map[string]string, app ipakku.Application) (err error) {
 	if len(tagvals) == 0 {
 		return
 	}
@@ -97,7 +97,7 @@ func doAutowireFields(ptr interface{}, tagvals map[string]string, app ipakku.App
 			break
 		}
 
-		var val interface{}
+		var val any
 		moduleName := getModuleName(valKey, ftype)
 		if val, err = getModuleByName(moduleName, app); nil != err {
 			break
@@ -119,7 +119,7 @@ func getModuleName(name string, ftype reflect.Type) string {
 }
 
 // getModuleByName 通过模块名字获取模块实例
-func getModuleByName(valKey string, app ipakku.Application) (val interface{}, err error) {
+func getModuleByName(valKey string, app ipakku.Application) (val any, err error) {
 	if err = app.Modules().GetModuleByName(valKey, &val); nil != err && err.Error() == fmt.Sprintf(ipakku.ERR_MSG_MODULE_NOT_FOUND, valKey) {
 		// 再从Params中找找看
 		if val = app.Params().GetParam(valKey).GetVal(); nil == val {

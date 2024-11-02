@@ -44,7 +44,7 @@ func GetAutoWiredDependencies(ptr ipakku.Module) (reuslt strutil.DS_M, err error
 }
 
 // appendFormAnonymousStruct 匿名嵌套结构体
-func appendFormAnonymousStruct(ptr interface{}, reuslt *strutil.DS_M) (err error) {
+func appendFormAnonymousStruct(ptr any, reuslt *strutil.DS_M) (err error) {
 	var fields []reflect.StructField
 	if fields = reflectutil.GetAnonymousOrNoneTypeNameField(ptr); len(fields) == 0 {
 		return
@@ -82,7 +82,7 @@ func appendFormAnonymousStruct(ptr interface{}, reuslt *strutil.DS_M) (err error
 }
 
 // appendDependencies 追加依赖信息
-func appendDependencies(reuslt *strutil.DS_M, tagvals map[string]string, ptr interface{}) (err error) {
+func appendDependencies(reuslt *strutil.DS_M, tagvals map[string]string, ptr any) (err error) {
 	if len(tagvals) == 0 {
 		return
 	}

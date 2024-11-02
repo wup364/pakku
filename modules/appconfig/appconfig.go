@@ -31,7 +31,7 @@ func (conf *AppConfig) AsModule() ipakku.Opts {
 			conf.autoValue = confutils.NewAutoValueOfBeanUtil(conf.config)
 
 			// 注册监听 - 自动完成配置类的配置
-			app.Modules().OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, app ipakku.Application) {
+			app.Modules().OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module any, app ipakku.Application) {
 				if err := conf.ScanAndAutoConfig(module); nil != err {
 					logs.Panicln(err)
 				}
@@ -49,16 +49,16 @@ func (conf *AppConfig) GetConfig(key string) (res utypes.Object) {
 }
 
 // SetConfig 设置值
-func (conf *AppConfig) SetConfig(key string, value interface{}) error {
+func (conf *AppConfig) SetConfig(key string, value any) error {
 	return conf.config.SetConfig(key, value)
 }
 
 // ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
-func (conf *AppConfig) ScanAndAutoConfig(ptr interface{}) error {
+func (conf *AppConfig) ScanAndAutoConfig(ptr any) error {
 	return conf.autoValue.ScanAndAutoConfig(ptr)
 }
 
 // ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
-func (conf *AppConfig) ScanAndAutoValue(configPrefix string, ptr interface{}) error {
+func (conf *AppConfig) ScanAndAutoValue(configPrefix string, ptr any) error {
 	return conf.autoValue.ScanAndAutoValue(configPrefix, ptr)
 }

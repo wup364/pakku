@@ -77,7 +77,7 @@ var ModuleEventOnSetupSucced ModuleEvent = "OnSetupSucced"
 var ModuleEventOnUpdateSucced ModuleEvent = "OnUpdateSucced"
 
 // OnModuleEvent 模块生命周期事件回调函数
-type OnModuleEvent func(module interface{}, app Application)
+type OnModuleEvent func(module any, app Application)
 
 // ModuleInfoRecorder 用于记录模块信息
 type ModuleInfoRecorder interface {
@@ -143,16 +143,16 @@ type ParamGetter interface {
 // ParamSetter 只写 - 保存实例中的键值对数据
 type ParamSetter interface {
 	// SetParam 设置变量, 保存在当前实例内部
-	SetParam(key string, val interface{})
+	SetParam(key string, val any)
 }
 
 // Modules 模块操作
 type Modules interface {
 	// GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
-	GetModuleByName(name string, val interface{}) error
+	GetModuleByName(name string, val any) error
 
 	// GetModules 获取模块, 模块名字和接口名字一样才能正常获得
-	GetModules(val ...interface{}) error
+	GetModules(val ...any) error
 
 	// GetModuleVersion 获取模块版本号
 	GetModuleVersion(name string) string
@@ -164,8 +164,8 @@ type Modules interface {
 // Utils 工具
 type Utils interface {
 	// AutoWired 自动注入依赖对象
-	AutoWired(structobj interface{}) error
+	AutoWired(structobj any) error
 
 	// Invoke 模块调用, 返回 []reflect.Value, 返回值暂时无法处理
-	Invoke(name string, method string, params ...interface{}) ([]reflect.Value, error)
+	Invoke(name string, method string, params ...any) ([]reflect.Value, error)
 }

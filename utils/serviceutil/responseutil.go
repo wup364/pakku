@@ -13,10 +13,10 @@ import (
 
 // HTTPResponse 接口返回格式约束
 type HTTPResponse struct {
-	Code    string      `json:"code"`
-	Flag    string      `json:"flag"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Code    string `json:"code"`
+	Flag    string `json:"flag"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
 }
 
 // BusinessError 业务异常
@@ -27,7 +27,7 @@ type BusinessError interface {
 }
 
 // SendSuccess 返回成功结果 httpCode=200, code=OK
-func SendSuccess(w http.ResponseWriter, data interface{}) {
+func SendSuccess(w http.ResponseWriter, data any) {
 	SendSuccessResponse(w, http.StatusOK, "SUCCESS", data)
 }
 
@@ -67,7 +67,7 @@ func SendBusinessErrorAndCode(w http.ResponseWriter, errCode string, msg string)
 }
 
 // SendSuccessResponse 返回成功结果
-func SendSuccessResponse(w http.ResponseWriter, statusCode int, bizCode string, data interface{}) {
+func SendSuccessResponse(w http.ResponseWriter, statusCode int, bizCode string, data any) {
 	w.Header().Set("Content-type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
 	w.Write(BuildHttpResponse(bizCode, "T", data, ""))
@@ -81,7 +81,7 @@ func SendErrorResponse(w http.ResponseWriter, statusCode int, errCode string, ms
 }
 
 // BuildHttpResponse 构建返回json
-func BuildHttpResponse(code string, flag string, data interface{}, msg string) []byte {
+func BuildHttpResponse(code string, flag string, data any, msg string) []byte {
 	bt, err := json.Marshal(HTTPResponse{Code: code, Flag: flag, Data: data, Message: msg})
 	if nil != err {
 		return []byte(err.Error())

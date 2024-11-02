@@ -12,7 +12,6 @@ package serviceutil
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"testing"
 )
 
@@ -51,29 +50,14 @@ func startService(addr string, defaultHandler HandlerFunc) error {
 }
 
 func AddURLHandlers(router *ServiceRouter) {
-	// 100 个无效测试数据, 模拟url查找
-	for i := 0; i < 100; i++ {
-		router.AddHandler(http.MethodPost, "/hello"+strconv.Itoa(i)+"/:[0-9]", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("hello/:[0-9] : " + r.Method + ": " + r.URL.String()))
-		})
-		router.AddHandler(http.MethodGet, "/hello"+strconv.Itoa(i), func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("hello : " + r.Method + ": " + r.URL.String()))
-		})
-	}
 	router.AddHandler(http.MethodGet, "/hello", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello : " + r.Method + ": " + r.URL.String()))
 	})
-	router.AddHandler(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello : " + r.Method + ": " + r.URL.String()))
+	router.AddHandler("", "/hello/:*", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello/:* : " + r.Method + ": " + r.URL.String()))
 	})
-	router.AddHandler(http.MethodGet, "/hello/:[0-9]", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello/:[0-9] : " + r.Method + ": " + r.URL.String()))
-	})
-	router.AddHandler(http.MethodPost, "/hello/:[0-9]", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello/:[0-9] : " + r.Method + ": " + r.URL.String()))
-	})
-	router.AddHandler("", "/hello/:[a-zA-Z]", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello/:[a-zA-Z] : " + r.Method + ": " + r.URL.String()))
+	router.AddHandler("", "/hello/:**", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello/:** : " + r.Method + ": " + r.URL.String()))
 	})
 }
 

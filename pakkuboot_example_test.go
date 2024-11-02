@@ -169,7 +169,7 @@ func (ctl *exampleController) AsController() ipakku.ControllerConfig {
 		RequestMapping: "/sayhello/v1",
 		RouterConfig: ipakku.RouterConfig{
 			ToLowerCase: true,
-			HandlerFunc: [][]interface{}{
+			HandlerFunc: [][]any{
 				{http.MethodGet, "/hello", ctl.Hello},
 			},
 		},

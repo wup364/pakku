@@ -361,7 +361,7 @@ func CopyFile(src, dst string, replace, jump bool) error {
 }
 
 // ReadFileAsJSON 读取Json文件
-func ReadFileAsJSON(path string, v interface{}) error {
+func ReadFileAsJSON(path string, v any) error {
 	if len(path) == 0 {
 		return PathNotExist("ReadFileAsJSON", path)
 	}
@@ -388,7 +388,7 @@ func ReadFileAsJSON(path string, v interface{}) error {
 }
 
 // WriteFileAsJSON 写入Json文件
-func WriteFileAsJSON(path string, v interface{}) error {
+func WriteFileAsJSON(path string, v any) error {
 	if len(path) == 0 {
 		return PathNotExist("WriteFileAsJSON", path)
 	}

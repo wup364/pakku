@@ -24,7 +24,7 @@ type AutoValueOfBeanUtil struct {
 }
 
 // ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
-func (av *AutoValueOfBeanUtil) ScanAndAutoConfig(ptr interface{}) (err error) {
+func (av *AutoValueOfBeanUtil) ScanAndAutoConfig(ptr any) (err error) {
 	// 仅支持指针类型结构体
 	if t := reflect.TypeOf(ptr); t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return errors.New("only pointer objects are supported")
@@ -34,7 +34,7 @@ func (av *AutoValueOfBeanUtil) ScanAndAutoConfig(ptr interface{}) (err error) {
 }
 
 // ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
-func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr interface{}) (err error) {
+func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr any) (err error) {
 	refVal := reflect.ValueOf(ptr)
 	if refVal.Kind() != reflect.Pointer || refVal.Elem().Kind() != reflect.Struct {
 		return errors.New("the input object must be a pointer struct")
@@ -46,7 +46,7 @@ func (av *AutoValueOfBeanUtil) ScanAndAutoValue(cprefix string, ptr interface{})
 }
 
 // scanAndAutoConfig 扫描自动配置类并配置
-func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr interface{}, prefix string) (err error) {
+func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr any, prefix string) (err error) {
 	var fieldVals map[string]string
 	if fieldVals = reflectutil.GetTagValues(ipakku.STAG_AUTOCONFIG, ptr); len(fieldVals) == 0 {
 		return
@@ -65,7 +65,7 @@ func (av *AutoValueOfBeanUtil) scanAndAutoConfig(ptr interface{}, prefix string)
 }
 
 // doConfigField 配置ptr内的某个字段
-func (av *AutoValueOfBeanUtil) doConfigField(ptr interface{}, cprefix, fieldName string) (err error) {
+func (av *AutoValueOfBeanUtil) doConfigField(ptr any, cprefix, fieldName string) (err error) {
 	var fvalue reflect.Value
 	if fvalue, err = reflectutil.GetStructFieldRefValue(ptr, fieldName); nil != err {
 		logs.Errorf("> AutoConfig %s [err=%s] \r\n", fieldName, err.Error())
@@ -177,7 +177,7 @@ func (av *AutoValueOfBeanUtil) setFeildValue(v reflect.Value, o utypes.Object) e
 				return nil
 
 			} else if objKind == reflect.Interface {
-				return av.setFeildValue4Array(v, obj.([]interface{}))
+				return av.setFeildValue4Array(v, obj.([]any))
 
 			}
 		}
@@ -194,7 +194,7 @@ func (av *AutoValueOfBeanUtil) setFeildValue(v reflect.Value, o utypes.Object) e
 }
 
 // setFeildValue4Array 设置字段值-数组类型
-func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []interface{}) error {
+func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []any) error {
 	if len(in) == 0 {
 		return nil
 	}
@@ -321,7 +321,7 @@ func (av *AutoValueOfBeanUtil) setFeildValue4Array(v reflect.Value, in []interfa
 }
 
 // scanAndAutoConfigAnonymous 扫描匿名嵌套类并配置
-func (av *AutoValueOfBeanUtil) scanAndAutoConfigAnonymous(ptr interface{}, cprefix string) (err error) {
+func (av *AutoValueOfBeanUtil) scanAndAutoConfigAnonymous(ptr any, cprefix string) (err error) {
 	var fields []reflect.StructField
 	if fields = reflectutil.GetAnonymousOrNoneTypeNameField(ptr); len(fields) == 0 {
 		return

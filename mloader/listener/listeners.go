@@ -7,35 +7,24 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ipakku
+// 模块加载监听
+package listener
 
-import "github.com/wup364/pakku/utils/utypes"
+import (
+	"github.com/wup364/pakku/ipakku"
+)
 
-// AppConfig app 配置模块
-type AppConfig interface {
-
-	// GetConfig 读取key的value信息, 返回 Object 对象, 里面的值可能是string或者map
-	GetConfig(key string) utypes.Object
-
-	// SetConfig 设置值
-	SetConfig(key string, value any) error
-
-	// ScanAndAutoConfig 扫描带有@autoconfig标签的字段, 并完成其配置
-	ScanAndAutoConfig(ptr any) error
-
-	// ScanAndAutoValue 扫描带有@autovalue标签的字段, 并完成其配置
-	ScanAndAutoValue(configPrefix string, ptr any) error
+// defaultListeners 默认已注册的监听(在初始化时注册, 比所有模块都要早执行), 在启动时按照顺序加载
+var defaultListeners = []MListener{
+	new(StartupListener),
 }
 
-// IConfig 配置接口
-type IConfig interface {
+// MListener 模块加载器监听
+type MListener interface {
+	Bind(m ipakku.Modules)
+}
 
-	// Init 初始化解析器
-	Init(appName string) error
-
-	// GetConfig 读取key的value信息, 返回 Object 对象, 里面的值可能是string或者map
-	GetConfig(key string) (res utypes.Object)
-
-	// SetConfig 设置值
-	SetConfig(key string, value any) error
+// GetDefaultListeners 获取默认已注册的监听(在初始化时注册, 比所有模块都要早执行)
+func GetDefaultListeners() []MListener {
+	return defaultListeners
 }

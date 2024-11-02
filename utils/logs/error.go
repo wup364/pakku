@@ -28,7 +28,7 @@ func SetErrorPrefix(prefix string) {
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
-func Panicf(format string, v ...interface{}) {
+func Panicf(format string, v ...any) {
 	s := fmt.Sprintf(format, v...)
 	if loggerLeve >= ERROR {
 		logE.Output(2, s)
@@ -37,7 +37,7 @@ func Panicf(format string, v ...interface{}) {
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
-func Panicln(v ...interface{}) {
+func Panicln(v ...any) {
 	s := fmt.Sprintln(v...)
 	if loggerLeve >= ERROR {
 		logE.Output(2, s)
@@ -46,7 +46,7 @@ func Panicln(v ...interface{}) {
 }
 
 // Error Error
-func Error(v ...interface{}) {
+func Error(v ...any) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprint(v...))
 		logWithStackInfo(2)
@@ -54,7 +54,7 @@ func Error(v ...interface{}) {
 }
 
 // Errorf Errorf
-func Errorf(format string, v ...interface{}) {
+func Errorf(format string, v ...any) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprintf(format, v...))
 		logWithStackInfo(2)
@@ -62,7 +62,7 @@ func Errorf(format string, v ...interface{}) {
 }
 
 // Errorln Errorln
-func Errorln(v ...interface{}) {
+func Errorln(v ...any) {
 	if loggerLeve >= ERROR {
 		logE.Output(2, fmt.Sprintln(v...))
 		logWithStackInfo(2)

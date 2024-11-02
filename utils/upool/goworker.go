@@ -21,7 +21,7 @@ func NewGoWorker(maxWorkers, maxQueue int) (wf *GoWorker) {
 }
 
 // NewSimpleJob  初始化一个调度器, 并指定Worker和Job的最大数量
-func NewSimpleJob(fuc func(*SimpleJob), id string, args interface{}) *SimpleJob {
+func NewSimpleJob(fuc func(*SimpleJob), id string, args any) *SimpleJob {
 	return &SimpleJob{
 		ID:   id,
 		fuc:  fuc,
@@ -52,7 +52,7 @@ func (wf *GoWorker) CloseGoWorker() {
 // SimpleJob 简单工作负载
 type SimpleJob struct {
 	ID   string
-	Args interface{}
+	Args any
 	fuc  func(*SimpleJob)
 }
 

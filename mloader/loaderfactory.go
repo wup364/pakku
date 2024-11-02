@@ -13,8 +13,7 @@ package mloader
 
 import (
 	"github.com/wup364/pakku/ipakku"
-	"github.com/wup364/pakku/mloader/mutils"
-	"github.com/wup364/pakku/utils/logs"
+	"github.com/wup364/pakku/mloader/listener"
 	"github.com/wup364/pakku/utils/strutil"
 	"github.com/wup364/pakku/utils/utypes"
 )
@@ -24,21 +23,22 @@ func NewDefault(name string) ipakku.Loader {
 	loader := New(name)
 	loader.SetParam(ipakku.PARAMS_KEY_APPNAME, name)
 	loader.SetModuleInfoRecorder(ipakku.PakkuConf.GetModuleInfoRecorderImplement())
-	loader.OnModuleEvent("*", ipakku.ModuleEventOnReady, func(module interface{}, app ipakku.Application) {
-		if err := mutils.AutoWired(module, app); nil != err {
-			logs.Panicln(err)
-		}
-	})
 
+	// 默认监听器列表
+	if listeners := listener.GetDefaultListeners(); len(listeners) > 0 {
+		for _, v := range listeners {
+			v.Bind(loader)
+		}
+	}
 	return loader
 }
 
 // NewDefault 实例一个加载器对象
 func New(name string) ipakku.Loader {
 	return &Loader{
-		events:     utypes.NewSafeMap(),
-		modules:    utypes.NewSafeMap(),
-		mparams:    utypes.NewSafeMap(),
+		events:     utypes.NewSafeMap[string, []ipakku.OnModuleEvent](),
+		modules:    utypes.NewSafeMap[string, ipakku.Module](),
+		mparams:    utypes.NewSafeMap[string, any](),
 		instanceID: strutil.GetUUID(),
 	}
 }

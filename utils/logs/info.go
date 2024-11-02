@@ -27,21 +27,21 @@ func SetInfoPrefix(prefix string) {
 }
 
 // Info Info
-func Info(v ...interface{}) {
+func Info(v ...any) {
 	if loggerLeve >= INFO {
 		logI.Output(2, fmt.Sprint(v...))
 	}
 }
 
 // Infof Infof
-func Infof(format string, v ...interface{}) {
+func Infof(format string, v ...any) {
 	if loggerLeve >= INFO {
 		logI.Output(2, fmt.Sprintf(format, v...))
 	}
 }
 
 // Infoln Infoln
-func Infoln(v ...interface{}) {
+func Infoln(v ...any) {
 	if loggerLeve >= INFO {
 		logI.Output(2, fmt.Sprintln(v...))
 	}

@@ -7,7 +7,7 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// 拓展对象-interface{}转各种类型
+// 拓展对象-any转各种类型
 
 package utypes
 
@@ -24,11 +24,11 @@ import (
 // Object interface类型转换
 type Object struct {
 	// o 实例化时保存的原对象或指针
-	o interface{}
+	o any
 }
 
 // NewObject 新建一个object对象
-func NewObject(obj interface{}) Object {
+func NewObject(obj any) Object {
 	return Object{o: obj}
 }
 
@@ -320,68 +320,68 @@ func (obj Object) ToTime(d time.Time) time.Time {
 	return d
 }
 
-// ToStrMap 转换为map[string]interface{}
-func (obj Object) ToStrMap(d map[string]interface{}) map[string]interface{} {
+// ToStrMap 转换为map[string]any
+func (obj Object) ToStrMap(d map[string]any) map[string]any {
 	if obj.IsNill() {
 		return d
 	}
-	if r, ok := obj.o.(map[string]interface{}); ok {
+	if r, ok := obj.o.(map[string]any); ok {
 		return r
 	}
 	return d
 }
 
-// ToIntMap 转换为map[int]interface{}
-func (obj Object) ToIntMap(d map[int]interface{}) map[int]interface{} {
+// ToIntMap 转换为map[int]any
+func (obj Object) ToIntMap(d map[int]any) map[int]any {
 	if obj.IsNill() {
 		return d
 	}
 
-	if r, ok := obj.o.(map[int]interface{}); ok {
+	if r, ok := obj.o.(map[int]any); ok {
 		return r
 	}
 	return d
 }
 
-// ToInt32Map 转换为map[int32]interface{}
-func (obj Object) ToInt32Map(d map[int32]interface{}) map[int32]interface{} {
+// ToInt32Map 转换为map[int32]any
+func (obj Object) ToInt32Map(d map[int32]any) map[int32]any {
 	if obj.IsNill() {
 		return d
 	}
-	if r, ok := obj.o.(map[int32]interface{}); ok {
+	if r, ok := obj.o.(map[int32]any); ok {
 		return r
 	}
 	return d
 }
 
-// ToInt64Map 转换为map[int64]interface{}
-func (obj Object) ToInt64Map(d map[int64]interface{}) map[int64]interface{} {
+// ToInt64Map 转换为map[int64]any
+func (obj Object) ToInt64Map(d map[int64]any) map[int64]any {
 	if obj.IsNill() {
 		return d
 	}
-	if r, ok := obj.o.(map[int64]interface{}); ok {
+	if r, ok := obj.o.(map[int64]any); ok {
 		return r
 	}
 	return d
 }
 
-// ToFloat32Map 转换为map[float32]interface{}
-func (obj Object) ToFloat32Map(d map[float32]interface{}) map[float32]interface{} {
+// ToFloat32Map 转换为map[float32]any
+func (obj Object) ToFloat32Map(d map[float32]any) map[float32]any {
 	if obj.IsNill() {
 		return d
 	}
-	if r, ok := obj.o.(map[float32]interface{}); ok {
+	if r, ok := obj.o.(map[float32]any); ok {
 		return r
 	}
 	return d
 }
 
-// ToFloat64Map 转换为map[float64]interface{}
-func (obj Object) ToFloat64Map(d map[float64]interface{}) map[float64]interface{} {
+// ToFloat64Map 转换为map[float64]any
+func (obj Object) ToFloat64Map(d map[float64]any) map[float64]any {
 	if obj.IsNill() {
 		return d
 	}
-	if r, ok := obj.o.(map[float64]interface{}); ok {
+	if r, ok := obj.o.(map[float64]any); ok {
 		return r
 	}
 	return d
@@ -393,18 +393,18 @@ func (obj Object) IsNill() bool {
 }
 
 // SetVal 设置原始值
-func (obj *Object) SetVal(newVal interface{}) *Object {
+func (obj *Object) SetVal(newVal any) *Object {
 	obj.o = newVal
 	return obj
 }
 
 // GetVal 获取原始值
-func (obj Object) GetVal() interface{} {
+func (obj Object) GetVal() any {
 	return obj.o
 }
 
 // Scan 自动赋值
-func (obj Object) Scan(v interface{}) error {
+func (obj Object) Scan(v any) error {
 	switch v := v.(type) {
 	case nil:
 		return nil

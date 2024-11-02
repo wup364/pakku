@@ -34,24 +34,24 @@ type HandlerFunc func(http.ResponseWriter, *http.Request)
 type FilterFunc func(http.ResponseWriter, *http.Request) bool
 
 // RuntimeErrorHandlerFunc 未知异常处理函数
-type RuntimeErrorHandlerFunc func(http.ResponseWriter, *http.Request, interface{})
+type RuntimeErrorHandlerFunc func(http.ResponseWriter, *http.Request, any)
 
 // ServiceRouter 实现了http.Server接口的ServeHTTP方法
 type ServiceRouter struct {
-	initial             bool                    // 是否初始化过了
-	isDebug             bool                    // 调试模式可以打印信息
-	runtimeError        RuntimeErrorHandlerFunc // 未知异常处理函数
-	defaultHandler      HandlerFunc             // 默认的url处理, 可以用于处理静态资源
-	urlHandlers         *utypes.SafeMap         // url路径全匹配路由表
-	regexpHandlers      *utypes.SafeMap         // url路径正则配路由表
-	regexpHandlersIndex []string                // url路径正则配路由表-索引(用于保存顺序)
-	regexpFilters       *utypes.SafeMap         // url路径正则匹配过滤器
-	regexpFiltersIndex  []string                // url路径正则匹配过滤器-索引(用于保存顺序)
+	initial             bool                                 // 是否初始化过了
+	isDebug             bool                                 // 调试模式可以打印信息
+	runtimeError        RuntimeErrorHandlerFunc              // 未知异常处理函数
+	defaultHandler      HandlerFunc                          // 默认的url处理, 可以用于处理静态资源
+	urlHandlers         *utypes.SafeMap[string, HandlerFunc] // url路径全匹配路由表
+	regexpHandlers      *utypes.SafeMap[string, HandlerFunc] // url路径正则配路由表
+	regexpHandlersIndex []string                             // url路径正则配路由表-索引(用于保存顺序)
+	regexpFilters       *utypes.SafeMap[string, FilterFunc]  // url路径正则匹配过滤器
+	regexpFiltersIndex  []string                             // url路径正则匹配过滤器-索引(用于保存顺序)
 	defaultFileter      FilterFunc
 }
 
 // debugLog 调试日志记录
-func (srt *ServiceRouter) debugLog(msg ...interface{}) {
+func (srt *ServiceRouter) debugLog(msg ...any) {
 	if srt.isDebug {
 		logs.Debugln(msg...)
 	}
@@ -70,7 +70,7 @@ func (srt *ServiceRouter) doHandle(w http.ResponseWriter, r *http.Request) {
 	// 1.0 如果是url全匹配, 则直接执行handler函数 - 有指定请求方式, POST, GET..
 	if h, ok := srt.urlHandlers.Get(surl); ok {
 		srt.debugLog("[URL.Handler.Path]", surl)
-		h.(HandlerFunc)(w, r)
+		h(w, r)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (srt *ServiceRouter) doHandle(w http.ResponseWriter, r *http.Request) {
 	anyurl, _ := buildHandlerURL("", r.URL.Path)
 	if h, ok := srt.urlHandlers.Get(anyurl); ok {
 		srt.debugLog("[URL.Handler.Path]", anyurl)
-		h.(HandlerFunc)(w, r)
+		h(w, r)
 		return
 	}
 
@@ -107,13 +107,23 @@ func (srt *ServiceRouter) doExecExpHandler(surl string, anyurl string, w http.Re
 		if symbolIndex = strings.Index(srt.regexpHandlersIndex[i], ":"); symbolIndex == -1 {
 			continue
 		}
-		if baseURL := srt.regexpHandlersIndex[i][:symbolIndex]; strings.HasPrefix(surl, baseURL) || strings.HasPrefix(anyurl, baseURL) {
-			if matched, _ := regexp.MatchString(srt.getRegexpStr(srt.regexpHandlersIndex[i][symbolIndex+1:]), surl[symbolIndex:]); !matched {
-				continue
+
+		baseURL := srt.regexpHandlersIndex[i][:symbolIndex]
+		if strings.HasPrefix(surl, baseURL) || strings.HasPrefix(anyurl, baseURL) {
+			matchStr := surl[symbolIndex:]
+			if strings.HasPrefix(anyurl, baseURL) {
+				matchStr = anyurl[symbolIndex:]
+			}
+
+			if len(matchStr) > 0 {
+				expStr := srt.getRegexpStr(srt.regexpHandlersIndex[i][symbolIndex+1:])
+				if matched, _ := regexp.MatchString(expStr, matchStr); !matched {
+					continue
+				}
 			}
 			if handler, ok := srt.regexpHandlers.Get(srt.regexpHandlersIndex[i]); ok {
 				srt.debugLog("[URL.Handler.Regexp]", surl, srt.regexpHandlersIndex[i])
-				handler.(HandlerFunc)(w, r)
+				handler(w, r)
 				return true
 			}
 		}
@@ -180,7 +190,7 @@ func (srt *ServiceRouter) doExecuteExpFilter(w http.ResponseWriter, r *http.Requ
 		for i := 0; i < len(matched); i++ {
 			if h, ok := srt.regexpFilters.Get(matched[i]); ok {
 				srt.debugLog("[URL.Filter]", matched[i])
-				if !h.(FilterFunc)(w, r) {
+				if !h(w, r) {
 					return true
 				}
 			}
@@ -222,9 +232,11 @@ func (srt *ServiceRouter) getMatchedFilter(urlPath string) []string {
 // ServeHTTP 实现http.Server接口的ServeHTTP方法
 func (srt *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
-		if srt.runtimeError != nil {
-			if err := recover(); nil != err {
+		if err := recover(); nil != err {
+			if srt.runtimeError != nil {
 				srt.runtimeError(w, r, err)
+			} else {
+				logs.Errorln(err)
 			}
 		}
 	}()
@@ -372,20 +384,20 @@ func (srt *ServiceRouter) checkInit() {
 	srt.initial = true
 
 	if nil == srt.regexpHandlers {
-		srt.regexpHandlers = utypes.NewSafeMap()
+		srt.regexpHandlers = utypes.NewSafeMap[string, HandlerFunc]()
 		srt.regexpHandlersIndex = make([]string, 0)
 	}
 	if nil == srt.urlHandlers {
-		srt.urlHandlers = utypes.NewSafeMap()
+		srt.urlHandlers = utypes.NewSafeMap[string, HandlerFunc]()
 	}
 	if nil == srt.regexpFilters {
-		srt.regexpFilters = utypes.NewSafeMap()
+		srt.regexpFilters = utypes.NewSafeMap[string, FilterFunc]()
 	}
 	if nil == srt.regexpFiltersIndex {
 		srt.regexpFiltersIndex = make([]string, 0)
 	}
 	if nil == srt.runtimeError {
-		srt.runtimeError = func(rw http.ResponseWriter, r *http.Request, err interface{}) {
+		srt.runtimeError = func(rw http.ResponseWriter, r *http.Request, err any) {
 			SendServerError(rw, fmt.Sprintf("%v", err))
 			logs.Errorln(err)
 		}

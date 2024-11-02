@@ -17,29 +17,29 @@ import (
 )
 
 // NewSafeMap 新建带RWMutex锁的map
-func NewSafeMap() *SafeMap {
-	return &SafeMap{
+func NewSafeMap[K comparable, V any]() *SafeMap[K, V] {
+	return &SafeMap[K, V]{
 		lock: new(sync.RWMutex),
-		cmap: make(map[interface{}]interface{}),
+		cmap: make(map[K]V),
 	}
 }
 
 // SafeMap 带RWMutex锁的map
-type SafeMap struct {
+type SafeMap[K comparable, V any] struct {
 	lock *sync.RWMutex
-	cmap map[interface{}]interface{}
+	cmap map[K]V
 }
 
 // New 初始化
-func (m SafeMap) New() *SafeMap {
+func (m SafeMap[K, V]) New() *SafeMap[K, V] {
 	r := &m
 	r.lock = new(sync.RWMutex)
-	r.cmap = make(map[interface{}]interface{})
+	r.cmap = make(map[K]V)
 	return r
 }
 
 // Get 获取值
-func (m *SafeMap) Get(k interface{}) (interface{}, bool) {
+func (m *SafeMap[K, V]) Get(k K) (V, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	val, ok := m.cmap[k]
@@ -47,7 +47,7 @@ func (m *SafeMap) Get(k interface{}) (interface{}, bool) {
 }
 
 // Cut 获取值, 剪切方式
-func (m *SafeMap) Cut(k interface{}) (interface{}, bool) {
+func (m *SafeMap[K, V]) Cut(k K) (V, bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	val, ok := m.cmap[k]
@@ -58,32 +58,31 @@ func (m *SafeMap) Cut(k interface{}) (interface{}, bool) {
 }
 
 // CutR 随机获取一个值, 剪切方式
-func (m *SafeMap) CutR() (interface{}, bool) {
+func (m *SafeMap[K, V]) CutR() (res V, exist bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if len(m.cmap) == 0 {
-		return nil, false
+		return
 	}
-	var key interface{}
+	var key K
 	for key = range m.cmap {
 		break
 	}
-	if val, ok := m.cmap[key]; ok {
+	if res, exist = m.cmap[key]; exist {
 		delete(m.cmap, key)
-		return val, ok
 	}
-	return nil, false
+	return
 }
 
 // Put 插入值
-func (m *SafeMap) Put(k interface{}, v interface{}) {
+func (m *SafeMap[K, V]) Put(k K, v V) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.cmap[k] = v
 }
 
 // Put 插入值, 如果存在则报错
-func (m *SafeMap) PutX(k interface{}, v interface{}) error {
+func (m *SafeMap[K, V]) PutX(k K, v V) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if _, ok := m.cmap[k]; ok {
@@ -94,10 +93,10 @@ func (m *SafeMap) PutX(k interface{}, v interface{}) error {
 }
 
 // Keys 获取所有的key
-func (m *SafeMap) Keys() []interface{} {
+func (m *SafeMap[K, V]) Keys() []K {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	r := make([]interface{}, len(m.cmap))
+	r := make([]K, len(m.cmap))
 	i := 0
 	for k := range m.cmap {
 		r[i] = k
@@ -107,10 +106,10 @@ func (m *SafeMap) Keys() []interface{} {
 }
 
 // Values 获取所有的value
-func (m *SafeMap) Values() []interface{} {
+func (m *SafeMap[K, V]) Values() []V {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	r := make([]interface{}, len(m.cmap))
+	r := make([]V, len(m.cmap))
 	i := 0
 	for _, val := range m.cmap {
 		r[i] = val
@@ -120,7 +119,7 @@ func (m *SafeMap) Values() []interface{} {
 }
 
 // ContainsKey  是否包含key
-func (m *SafeMap) ContainsKey(k interface{}) bool {
+func (m *SafeMap[K, V]) ContainsKey(k K) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	_, ok := m.cmap[k]
@@ -128,24 +127,24 @@ func (m *SafeMap) ContainsKey(k interface{}) bool {
 }
 
 // Delete 删除
-func (m *SafeMap) Delete(k interface{}) {
+func (m *SafeMap[K, V]) Delete(k K) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	delete(m.cmap, k)
 }
 
 // Clear 清空
-func (m *SafeMap) Clear() {
+func (m *SafeMap[K, V]) Clear() {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.cmap = make(map[interface{}]interface{})
+	m.cmap = make(map[K]V)
 }
 
 // ToMap 获取map值, 复制值
-func (m *SafeMap) ToMap() map[interface{}]interface{} {
+func (m *SafeMap[K, V]) ToMap() map[K]V {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	r := make(map[interface{}]interface{})
+	r := make(map[K]V)
 	for k, v := range m.cmap {
 		r[k] = v
 	}
@@ -153,7 +152,7 @@ func (m *SafeMap) ToMap() map[interface{}]interface{} {
 }
 
 // DoRange 循环
-func (m *SafeMap) DoRange(fun func(key, val interface{}) error) error {
+func (m *SafeMap[K, V]) DoRange(fun func(key K, val V) error) error {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for k, v := range m.cmap {
@@ -165,7 +164,7 @@ func (m *SafeMap) DoRange(fun func(key, val interface{}) error) error {
 }
 
 // Size 返回大小
-func (m *SafeMap) Size() int {
+func (m *SafeMap[K, V]) Size() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return len(m.cmap)

@@ -36,7 +36,7 @@ var Filter4Passed FilterFunc = func(http.ResponseWriter, *http.Request) bool { r
 
 // RouterConfig 批量注册服务路径配置对象;
 // ToLowerCase bool   是否需要url转小写, 在未指定url(使用函数名字作为url的一部分)的情况下生效;
-// HandlerFunc [][]interface{} 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
+// HandlerFunc [][]any 需要注册的函数 [{"Method(GET|POST...)", "HandlerFunc function"}, {"Method(GET|POST...)", "指定的url(可选参数)", "HandlerFunc function"}]
 type RouterConfig serviceutil.RouterConfig
 
 // FilterConfigItem 过滤器配置对象
@@ -111,7 +111,7 @@ type HTTPService interface {
 
 // RPCService 服务
 type RPCService interface {
-	RegisteRPC(rcvr interface{}) error
+	RegisteRPC(rcvr any) error
 }
 
 // HTTPServiceConfig 启动配置

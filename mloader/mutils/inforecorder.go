@@ -31,7 +31,7 @@ func init() {
 
 // InfoRecorder json配置器
 type InfoRecorder struct {
-	jsonObject map[string]interface{}
+	jsonObject map[string]any
 	configPath string
 	l          *sync.RWMutex
 }
@@ -57,7 +57,7 @@ func (config *InfoRecorder) InitConfig(configPath string) error {
 	config.configPath = configPath
 	// 文件不存在则创建
 	if !fileutil.IsFile(config.configPath) {
-		err := config.writeFileAsJSON(config.configPath, make(map[string]interface{}))
+		err := config.writeFileAsJSON(config.configPath, make(map[string]any))
 		if nil != err {
 			return err
 		}
@@ -67,7 +67,7 @@ func (config *InfoRecorder) InitConfig(configPath string) error {
 	config.l.Lock()
 	defer config.l.Unlock()
 	// Json to map
-	config.jsonObject = make(map[string]interface{})
+	config.jsonObject = make(map[string]any)
 	return config.readFileAsJSON(config.configPath, &config.jsonObject)
 }
 
@@ -93,7 +93,7 @@ func (config *InfoRecorder) GetValueByKey(key string) (res utypes.Object) {
 	if keys == nil {
 		return
 	}
-	var temp interface{}
+	var temp any
 	keyLength := len(keys)
 	for i := 0; i < keyLength; i++ {
 		// last key
@@ -103,7 +103,7 @@ func (config *InfoRecorder) GetValueByKey(key string) (res utypes.Object) {
 					res = utypes.NewObject(tp)
 				}
 			} else if temp != nil {
-				if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
+				if tp, ok := temp.(map[string]any)[keys[i]]; ok {
 					res = utypes.NewObject(tp)
 				}
 			}
@@ -111,13 +111,13 @@ func (config *InfoRecorder) GetValueByKey(key string) (res utypes.Object) {
 		}
 
 		//
-		var temp2 interface{}
+		var temp2 any
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
 				temp2 = tp
 			}
 		} else { //
-			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
+			if tp, ok := temp.(map[string]any)[keys[i]]; ok {
 				temp2 = tp
 			}
 		}
@@ -141,34 +141,34 @@ func (config *InfoRecorder) SetValueByKey(key string, value string) error {
 	defer config.l.Unlock()
 	keys := strings.Split(key, ".")
 	keyLength := len(keys)
-	var temp interface{}
+	var temp any
 	for i := 0; i < keyLength; i++ {
 		// last key
 		if i == keyLength-1 {
 			if i == 0 {
 				config.jsonObject[keys[i]] = value
 			} else if temp != nil {
-				temp.(map[string]interface{})[keys[i]] = value
+				temp.(map[string]any)[keys[i]] = value
 			}
 			err := config.writeFileAsJSON(config.configPath, config.jsonObject)
 			return err
 		}
 
 		//
-		var temp2 interface{}
+		var temp2 any
 		if temp == nil { // first
 			if tp, ok := config.jsonObject[keys[i]]; ok {
 				temp2 = tp
 			} else {
-				temp2 = make(map[string]interface{})
+				temp2 = make(map[string]any)
 				config.jsonObject[keys[i]] = temp2
 			}
 		} else { //
-			if tp, ok := temp.(map[string]interface{})[keys[i]]; ok {
+			if tp, ok := temp.(map[string]any)[keys[i]]; ok {
 				temp2 = tp
 			} else {
-				temp2 = make(map[string]interface{})
-				temp.(map[string]interface{})[keys[i]] = temp2
+				temp2 = make(map[string]any)
+				temp.(map[string]any)[keys[i]] = temp2
 			}
 		}
 
@@ -181,7 +181,7 @@ func (config *InfoRecorder) SetValueByKey(key string, value string) error {
 }
 
 // readFileAsJSON 读取Json文件
-func (config *InfoRecorder) readFileAsJSON(path string, v interface{}) error {
+func (config *InfoRecorder) readFileAsJSON(path string, v any) error {
 	if len(path) == 0 {
 		return fileutil.PathNotExist("ReadFileAsJSON", path)
 	}
@@ -208,7 +208,7 @@ func (config *InfoRecorder) readFileAsJSON(path string, v interface{}) error {
 }
 
 // writeFileAsJSON 写入Json文件
-func (config *InfoRecorder) writeFileAsJSON(path string, v interface{}) error {
+func (config *InfoRecorder) writeFileAsJSON(path string, v any) error {
 	if len(path) == 0 {
 		return fileutil.PathNotExist("WriteFileAsJSON", path)
 	}

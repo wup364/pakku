@@ -10,7 +10,7 @@ import (
 )
 
 // 将请求体解析为对象
-func ParseHTTPRequest(r *http.Request, obj interface{}) error {
+func ParseHTTPRequest(r *http.Request, obj any) error {
 	return json.Unmarshal([]byte(strutil.ReadAsString(r.Body)), obj)
 }
 

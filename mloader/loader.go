@@ -30,11 +30,11 @@ import (
 
 // Loader 模块加载器, 实例化后可实现统一管理模板
 type Loader struct {
-	instanceID string                    // 加载器实例ID
-	events     *utypes.SafeMap           // 模块生命周期事件
-	modules    *utypes.SafeMap           // 模块Map表
-	mparams    *utypes.SafeMap           // 保存在模块对象中共享的字段key-value
-	mrecord    ipakku.ModuleInfoRecorder // 模块信息记录器
+	instanceID string                                          // 加载器实例ID
+	events     *utypes.SafeMap[string, []ipakku.OnModuleEvent] // 模块生命周期事件
+	modules    *utypes.SafeMap[string, ipakku.Module]          // 模块Map表
+	mparams    *utypes.SafeMap[string, any]                    // 保存在模块对象中共享的字段key-value
+	mrecord    ipakku.ModuleInfoRecorder                       // 模块信息记录器
 }
 
 // Loads 初始化模块(自动分析模块依赖), 初始化顺序: doReady -> doSetup -> doCheckVersion -> doInit -> doEnd
@@ -81,7 +81,7 @@ func (loader *Loader) Load(mt ipakku.Module) {
 }
 
 // Invoke 模块调用, 返回 []reflect.Value, 返回值暂时无法处理
-func (loader *Loader) Invoke(name string, method string, params ...interface{}) ([]reflect.Value, error) {
+func (loader *Loader) Invoke(name string, method string, params ...any) ([]reflect.Value, error) {
 	if module, ok := loader.modules.Get(name); ok {
 		val := reflect.ValueOf(module)
 		fun := val.MethodByName(method)
@@ -96,7 +96,7 @@ func (loader *Loader) Invoke(name string, method string, params ...interface{}) 
 }
 
 // AutoWired 自动注入依赖对象
-func (loader *Loader) AutoWired(structobj interface{}) error {
+func (loader *Loader) AutoWired(structobj any) error {
 	return mutils.AutoWired(structobj, loader)
 }
 
@@ -106,7 +106,7 @@ func (loader *Loader) GetInstanceID() string {
 }
 
 // SetParam 设置变量, 保存在模板加载器实例内部
-func (loader *Loader) SetParam(key string, val interface{}) {
+func (loader *Loader) SetParam(key string, val any) {
 	loader.mparams.Put(key, val)
 }
 
@@ -123,7 +123,7 @@ func (loader *Loader) OnModuleEvent(name string, event ipakku.ModuleEvent, val i
 	var events []ipakku.OnModuleEvent
 	eventKey := loader.getModuleEventKey(name, event)
 	if val, ok := loader.events.Get(eventKey); ok {
-		events = val.([]ipakku.OnModuleEvent)
+		events = val
 	} else {
 		events = make([]ipakku.OnModuleEvent, 0)
 	}
@@ -131,7 +131,7 @@ func (loader *Loader) OnModuleEvent(name string, event ipakku.ModuleEvent, val i
 }
 
 // GetModuleByName 根据模块Name获取模块指针记录, 可以获取一个已经实例化的模块
-func (loader *Loader) GetModuleByName(name string, val interface{}) error {
+func (loader *Loader) GetModuleByName(name string, val any) error {
 	if tmp, ok := loader.modules.Get(name); ok {
 		return reflectutil.SetInterfaceValueUnSafe(val, tmp)
 	}
@@ -139,7 +139,7 @@ func (loader *Loader) GetModuleByName(name string, val interface{}) error {
 }
 
 // GetModules 获取模块, 模块名字和接口名字一样才能正常获得
-func (loader *Loader) GetModules(val ...interface{}) error {
+func (loader *Loader) GetModules(val ...any) error {
 	for i := 0; i < len(val); i++ {
 		if nil == val[i] {
 			return errors.New("the input object must be pointer interface, can not be nil")
@@ -200,14 +200,10 @@ func (loader *Loader) setVersion(moduleName string, version float64) {
 func (loader *Loader) doHandleModuleEvent(mt ipakku.Module, event ipakku.ModuleEvent) {
 	var events []ipakku.OnModuleEvent
 	if val, ok := loader.events.Get(loader.getModuleEventKey("*", event)); ok {
-		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
-			events = funs
-		}
+		events = val
 	}
 	if val, ok := loader.events.Get(loader.getModuleEventKey(loader.getModuleName(mt), event)); ok {
-		if funs, ok := val.([]ipakku.OnModuleEvent); ok {
-			events = append(events, funs...)
-		}
+		events = append(events, val...)
 	}
 	if len(events) > 0 {
 		for i := 0; i < len(events); i++ {

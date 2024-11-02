@@ -39,7 +39,7 @@ func (rpcs *RPCService) GetRPCService() *rpc.Server {
 }
 
 // RegisteRPC RegisteRPC
-func (rpcs *RPCService) RegisteRPC(rcvr interface{}) error {
+func (rpcs *RPCService) RegisteRPC(rcvr any) error {
 	logs.Debugf("AddRPCService: %T\r\n", rcvr)
 
 	// 自动注入依赖

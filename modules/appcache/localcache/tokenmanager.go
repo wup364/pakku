@@ -24,14 +24,14 @@ import (
 // 使用前需要调用 init 方法
 type TokenManager struct {
 	destroyed bool // 是否销毁对象
-	tokenMap  *utypes.SafeMap
+	tokenMap  *utypes.SafeMap[string, tokenObject]
 }
 
 // tokenObject 用于保存token内容的对象
 type tokenObject struct {
-	regtime int64       // 内部计算用-注册时间
-	expired int64       // 内部计算用-过期时间
-	O       interface{} // token内容
+	regtime int64 // 内部计算用-注册时间
+	expired int64 // 内部计算用-过期时间
+	O       any   // token内容
 }
 
 // Init 初始化-启动一个管理线程, 负责令牌的生命周期
@@ -40,43 +40,16 @@ func (tm *TokenManager) Init() *TokenManager {
 		return tm
 	}
 	tm.destroyed = false
-	tm.tokenMap = utypes.NewSafeMap()
+	tm.tokenMap = utypes.NewSafeMap[string, tokenObject]()
 
 	// 定期清理
-	go func() {
-		for {
-			if tm.destroyed {
-				break
-			}
-			time.Sleep(time.Duration(1) * time.Second)
-			if tm.tokenMap.Size() >= 0 {
-				keys := make([]string, 0)
-				tm.tokenMap.DoRange(func(key, val interface{}) error {
-					if tb, ok := val.(tokenObject); ok && tb.expired > -1 {
-						now := time.Now().UnixNano()
-						if tb.expired <= now {
-							keys = append(keys, key.(string))
-						}
-					}
-					return nil
-				})
-				runtime.Gosched()
-				for i := 0; i < len(keys); i++ {
-					tm.tokenMap.Delete(keys[i])
-				}
-			}
-		}
-		if tm.destroyed {
-			tm.tokenMap.Clear()
-			tm.tokenMap = nil
-		}
-	}()
+	go tm.clearRunnable()
 	return tm
 }
 
 // AskToken 生成令牌, tb:存储内容, second:过期时间, 单位秒
 // 当 second=-1时, 不会自动销毁内存中的信息
-func (tm *TokenManager) AskToken(tb interface{}, second int64) string {
+func (tm *TokenManager) AskToken(tb any, second int64) string {
 	token := strutil.GetUUID()
 	tm.PutTokenBody(token, tb, second)
 	return token
@@ -84,7 +57,7 @@ func (tm *TokenManager) AskToken(tb interface{}, second int64) string {
 
 // PutTokenBody 设置令牌内容, key: tooken字符, 存在则覆盖, tb:存储内容, second:过期时间, 单位秒
 // 当 second=-1时, 不会自动销毁内存中的信息
-func (tm *TokenManager) PutTokenBody(token string, tb interface{}, second int64) {
+func (tm *TokenManager) PutTokenBody(token string, tb any, second int64) {
 	tkb := tokenObject{
 		O:       tb,
 		regtime: time.Now().UnixNano(),
@@ -98,7 +71,7 @@ func (tm *TokenManager) PutTokenBody(token string, tb interface{}, second int64)
 }
 
 // PutTokenBodyNX 参数同PutTokenBody函数, 区别在于当token存在时操作不成功, 返回false
-func (tm *TokenManager) PutTokenBodyNX(token string, tb interface{}, second int64) bool {
+func (tm *TokenManager) PutTokenBodyNX(token string, tb any, second int64) bool {
 	tkb := tokenObject{
 		O:       tb,
 		regtime: time.Now().UnixNano(),
@@ -112,13 +85,12 @@ func (tm *TokenManager) PutTokenBodyNX(token string, tb interface{}, second int6
 }
 
 // GetTokenBody 获取令牌信息
-func (tm *TokenManager) GetTokenBody(tk string) (interface{}, bool) {
+func (tm *TokenManager) GetTokenBody(tk string) (any, bool) {
 	if val, ok := tm.tokenMap.Get(tk); ok {
-		tb := val.(tokenObject)
-		if tb.expired != int64(-1) && tb.expired <= time.Now().UnixNano() {
+		if val.expired != int64(-1) && val.expired <= time.Now().UnixNano() {
 			return nil, false
 		}
-		return tb.O, ok
+		return val.O, ok
 	} else {
 		return nil, ok
 	}
@@ -128,26 +100,24 @@ func (tm *TokenManager) GetTokenBody(tk string) (interface{}, bool) {
 func (tm *TokenManager) RefreshToken(tk string) {
 	if val, ok := tm.tokenMap.Get(tk); ok {
 		now := time.Now().UnixNano()
-		tb := val.(tokenObject)
-		if tb.expired <= now {
+		if val.expired <= now {
 			return
 		}
-		used := tb.expired - tb.regtime
-		tb.regtime = time.Now().UnixNano()
-		tb.expired = tb.regtime + used
-		tm.tokenMap.Put(tk, tb)
+		used := val.expired - val.regtime
+		val.regtime = time.Now().UnixNano()
+		val.expired = val.regtime + used
+		tm.tokenMap.Put(tk, val)
 	}
 }
 
 // ListTokens 列出所有的token
 func (tm *TokenManager) ListTokens() []string {
 	keys := make([]string, 0)
-	tm.tokenMap.DoRange(func(key, val interface{}) error {
-		tb := val.(tokenObject)
-		if tb.expired == -1 {
-			keys = append(keys, key.(string))
-		} else if tb.expired == -1 || tb.expired > time.Now().UnixNano() {
-			keys = append(keys, key.(string))
+	tm.tokenMap.DoRange(func(key string, val tokenObject) error {
+		if val.expired == -1 {
+			keys = append(keys, key)
+		} else if val.expired == -1 || val.expired > time.Now().UnixNano() {
+			keys = append(keys, key)
 		}
 		return nil
 	})
@@ -159,8 +129,7 @@ func (tm *TokenManager) GetExpiredNano(tk string) int64 {
 	if val, ok := tm.tokenMap.Get(tk); !ok {
 		return -1
 	} else {
-		tb := val.(tokenObject)
-		return tb.expired - tb.regtime
+		return val.expired - val.regtime
 	}
 }
 
@@ -177,4 +146,40 @@ func (tm *TokenManager) DestroyToken(tk string) {
 // Destroy 销毁整个对象, 销毁后不能在使用此对象, 需要重新初始化
 func (tm *TokenManager) Destroy() {
 	tm.destroyed = true
+}
+
+// clearRunnable 清理线程
+func (tm *TokenManager) clearRunnable() {
+	defer func() {
+		if nil != tm.tokenMap {
+			tm.tokenMap.Clear()
+			tm.tokenMap = nil
+		}
+	}()
+
+	for {
+		if nil == tm.tokenMap || tm.destroyed {
+			break
+		}
+
+		time.Sleep(time.Duration(1) * time.Second)
+		if tm.tokenMap.Size() == 0 {
+			continue
+		}
+
+		keys := make([]string, 0)
+		tm.tokenMap.DoRange(func(key string, val tokenObject) error {
+			if val.expired > -1 {
+				if now := time.Now().UnixNano(); val.expired <= now {
+					keys = append(keys, key)
+				}
+			}
+			return nil
+		})
+
+		runtime.Gosched()
+		for i := 0; i < len(keys); i++ {
+			tm.tokenMap.Delete(keys[i])
+		}
+	}
 }

@@ -33,7 +33,7 @@ func (ev *AppEvent) AsModule() ipakku.Opts {
 }
 
 // PublishSyncEvent PublishSyncEvent
-func (ev *AppEvent) PublishSyncEvent(group string, name string, val interface{}) error {
+func (ev *AppEvent) PublishSyncEvent(group string, name string, val any) error {
 	return ev.sysevt.PublishSyncEvent(group, name, val)
 }
 
@@ -43,7 +43,7 @@ func (ev *AppEvent) ConsumerSyncEvent(group string, name string, fun ipakku.Even
 }
 
 // PublishEvent PublishEvent
-func (ev *AppEvent) PublishEvent(name string, val string, obj interface{}) error {
+func (ev *AppEvent) PublishEvent(name string, val string, obj any) error {
 	return ev.event.PublishEvent(name, val, obj)
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 WuPeng <wup364@outlook.com>.
+// Copyright (C) 2024 WuPeng <wup364@outlook.com>.
 // Use of this source code is governed by an MIT-style.
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction,
 // including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -7,27 +7,20 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// 模块加载器
-// 依赖包: utils.utypes.Object utils.strutil.strutil
+package localcache
 
-package mloader
+import "fmt"
 
-import (
-	"github.com/wup364/pakku/ipakku"
-	"github.com/wup364/pakku/mloader/listener"
-)
-
-// defaultListeners 默认已注册的监听(在初始化时注册, 比所有模块都要早执行), 在启动时按照顺序加载
-var defaultListeners = []MListener{
-	new(listener.StartupListener),
+// StructValue 结构体的值, 包含一个任意类型的Value
+type StructValue struct {
+	Value any
 }
 
-// MListener 模块加载器监听
-type MListener interface {
-	Bind(app ipakku.Application)
-}
-
-// GetDefaultListeners 获取默认已注册的监听(在初始化时注册, 比所有模块都要早执行)
-func GetDefaultListeners() []MListener {
-	return defaultListeners
+// Clone 缓存值copy接口, 缓存值若实现此接口, Get时会调用Clone方法
+func (sv *StructValue) Clone(val any) error {
+	if uat, ok := val.(*StructValue); ok {
+		uat.Value = sv.Value
+		return nil
+	}
+	return fmt.Errorf("can't support clone %T ", val)
 }

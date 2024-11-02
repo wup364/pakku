@@ -21,12 +21,12 @@ import (
 type StartupListener struct{}
 
 // Bind 绑定事件监听
-func (evt *StartupListener) Bind(app ipakku.Application) {
-	app.Modules().OnModuleEvent("*", ipakku.ModuleEventOnReady, evt.doReady)
+func (evt *StartupListener) Bind(m ipakku.Modules) {
+	m.OnModuleEvent("*", ipakku.ModuleEventOnReady, evt.doReady)
 }
 
 // doReady 模块准备
-func (evt *StartupListener) doReady(m interface{}, app ipakku.Application) {
+func (evt *StartupListener) doReady(m any, app ipakku.Application) {
 	if err := mutils.AutoWired(m, app); nil != err {
 		logs.Panicln(err)
 	}
