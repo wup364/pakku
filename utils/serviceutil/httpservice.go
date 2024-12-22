@@ -21,7 +21,9 @@ import (
 
 // NewHTTPService 新建一个HTTP服务
 func NewHTTPService() *HTTPService {
-	return &HTTPService{}
+	return &HTTPService{
+		ServiceRouter: NewServiceRouter(),
+	}
 }
 
 // StartHTTPConf 启动配置
@@ -48,12 +50,12 @@ type RouterConfig struct {
 
 // HTTPService HTTP服务
 type HTTPService struct {
-	ServiceRouter
+	*ServiceRouter
 }
 
 // GetRouter 获取路由实例, 可作为http的Server.Handler实例
 func (service *HTTPService) GetRouter() *ServiceRouter {
-	return &service.ServiceRouter
+	return service.ServiceRouter
 }
 
 // Get Get

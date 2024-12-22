@@ -10,22 +10,27 @@
 package serviceutil
 
 // http服务器工具-URL路由管理
+// ServiceRouter 实现了 http.Server 接口的 ServeHTTP 方法, 提供 URL 路由管理功能。
 // 请求处理逻辑: 过滤器 > 路径匹配 > END
-// 过滤器优先级: 全匹配url > 正则url > 全局设定 > 无匹配(next)
-// 路径处理优先级: 全匹配url > 正则url > 默认设定 > 无匹配(404)
-// isDebug 参数在生产环境注意关闭, 有成倍性能差距 6000/sec-> 25000/sec
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/wup364/pakku/utils/logs"
 	"github.com/wup364/pakku/utils/strutil"
 	"github.com/wup364/pakku/utils/utypes"
 )
+
+// contextKey 自定义类型
+type contextKey string
+
+// urlParamsKey 上下文key
+const urlParamsKey contextKey = "urlParams"
 
 // HandlerFunc 定义请求处理器
 type HandlerFunc func(http.ResponseWriter, *http.Request)
@@ -36,200 +41,45 @@ type FilterFunc func(http.ResponseWriter, *http.Request) bool
 // RuntimeErrorHandlerFunc 未知异常处理函数
 type RuntimeErrorHandlerFunc func(http.ResponseWriter, *http.Request, any)
 
-// ServiceRouter 实现了http.Server接口的ServeHTTP方法
+// routerKey 自定义类型
+type routerKey string
+
+// NewServiceRouter New service router
+func NewServiceRouter() (router *ServiceRouter) {
+	router = &ServiceRouter{}
+	router.initializeServiceRouter()
+	return router
+}
+
+// ServiceRouter 实现了 http.Server 接口的 ServeHTTP 方法, 提供 URL 路由管理功能。
+// 请求处理逻辑: 过滤器 > 路径匹配 > END
 type ServiceRouter struct {
-	initial             bool                                 // 是否初始化过了
-	isDebug             bool                                 // 调试模式可以打印信息
-	runtimeError        RuntimeErrorHandlerFunc              // 未知异常处理函数
-	defaultHandler      HandlerFunc                          // 默认的url处理, 可以用于处理静态资源
-	urlHandlers         *utypes.SafeMap[string, HandlerFunc] // url路径全匹配路由表
-	regexpHandlers      *utypes.SafeMap[string, HandlerFunc] // url路径正则配路由表
-	regexpHandlersIndex []string                             // url路径正则配路由表-索引(用于保存顺序)
-	regexpFilters       *utypes.SafeMap[string, FilterFunc]  // url路径正则匹配过滤器
-	regexpFiltersIndex  []string                             // url路径正则匹配过滤器-索引(用于保存顺序)
-	defaultFileter      FilterFunc
+	initial         bool                                        // 是否已初始化
+	isDebug         bool                                        // 调试模式, 启用时输出详细日志
+	enableURLParam  bool                                        // 是否启用URL参数注入到上下文
+	urlHandlers     *utypes.SafeMap[routerKey, *HandlerEntry]   // URL处理器映射表
+	urlFilters      *utypes.SafeMap[routerKey, *URLFilterEntry] // URL过滤器映射表
+	handlersIndex   []string                                    // 处理器索引, 保持注册顺序
+	urlFiltersIndex []string                                    // 过滤器索引, 保持注册顺序
+	defaultFileter  FilterFunc                                  // 默认过滤器
+	defaultHandler  HandlerFunc                                 // 默认处理器, 处理未匹配的请求
+	runtimeError    RuntimeErrorHandlerFunc                     // 运行时错误处理函数
 }
 
-// debugLog 调试日志记录
-func (srt *ServiceRouter) debugLog(msg ...any) {
-	if srt.isDebug {
-		logs.Debugln(msg...)
-	}
+// URLFilterEntry url过滤器结构体
+type URLFilterEntry struct {
+	matcher *URLMatcher
+	filter  FilterFunc
 }
 
-// ServiceRouter 根据注册的路由表调用对应的函数
-// 优先匹配全url > 正则url > 默认处理器 > 404
-func (srt *ServiceRouter) doHandle(w http.ResponseWriter, r *http.Request) {
-	surl, err := buildHandlerURL(r.Method, r.URL.Path)
-	if nil != err {
-		w.Write([]byte(err.Error()))
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	// 1.0 如果是url全匹配, 则直接执行handler函数 - 有指定请求方式, POST, GET..
-	if h, ok := srt.urlHandlers.Get(surl); ok {
-		srt.debugLog("[URL.Handler.Path]", surl)
-		h(w, r)
-		return
-	}
-
-	// 1.1 如果是url全匹配, 则直接执行handler函数 - 无指定请求方式, POST, GET..
-	anyurl, _ := buildHandlerURL("", r.URL.Path)
-	if h, ok := srt.urlHandlers.Get(anyurl); ok {
-		srt.debugLog("[URL.Handler.Path]", anyurl)
-		h(w, r)
-		return
-	}
-
-	// 2.0 如果是url正则检查, 则需要检查正则, 正则为':'后面的字符
-	if srt.doExecExpHandler(surl, anyurl, w, r) {
-		return
-	}
-
-	// 没有注册的地址, 使用默认处理器
-	if srt.defaultHandler != nil {
-		srt.debugLog("[URL.Handler.Default]", surl)
-		srt.defaultHandler(w, r)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-	}
+// HandlerEntry 添加新的结构体定义
+type HandlerEntry struct {
+	matcher *URLMatcher
+	handler HandlerFunc
+	method  string
 }
 
-// doExecExpHandle 执行正则、通配符规则, 有命中则返回true
-func (srt *ServiceRouter) doExecExpHandler(surl string, anyurl string, w http.ResponseWriter, r *http.Request) bool {
-	if len(srt.regexpHandlersIndex) == 0 {
-		return false
-	}
-
-	var symbolIndex int
-	for i := 0; i < len(srt.regexpHandlersIndex); i++ {
-		if symbolIndex = strings.Index(srt.regexpHandlersIndex[i], ":"); symbolIndex == -1 {
-			continue
-		}
-
-		baseURL := srt.regexpHandlersIndex[i][:symbolIndex]
-		if strings.HasPrefix(surl, baseURL) || strings.HasPrefix(anyurl, baseURL) {
-			matchStr := surl[symbolIndex:]
-			if strings.HasPrefix(anyurl, baseURL) {
-				matchStr = anyurl[symbolIndex:]
-			}
-
-			if len(matchStr) > 0 {
-				expStr := srt.getRegexpStr(srt.regexpHandlersIndex[i][symbolIndex+1:])
-				if matched, _ := regexp.MatchString(expStr, matchStr); !matched {
-					continue
-				}
-			}
-			if handler, ok := srt.regexpHandlers.Get(srt.regexpHandlersIndex[i]); ok {
-				srt.debugLog("[URL.Handler.Regexp]", surl, srt.regexpHandlersIndex[i])
-				handler(w, r)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// getRegexpStr 获取正则字符串
-func (srt *ServiceRouter) getRegexpStr(input string) string {
-	if strutil.EqualsAny(input, "*", "*/") {
-		return `^[^\s/]+$`
-
-	} else if strutil.EqualsAny(input, "**", "**/") {
-		return `^[^\s/][^\s]*$`
-
-	} else {
-		// 处理头部
-		var tmp string
-		if strings.HasPrefix(input, "**") {
-			tmp = `^[^\s/][^\s]*` + input[2:]
-		} else if strings.HasPrefix(input, "*") {
-			tmp = `^[^\s/]+` + input[1:]
-		}
-
-		// 处理尾部
-		if strings.HasSuffix(tmp, ":**") || strings.HasSuffix(tmp, ":**/") {
-			tmp = tmp[:strings.LastIndex(tmp, ":**")] + `[^\s]*`
-		} else if strings.HasSuffix(tmp, ":*") || strings.HasSuffix(tmp, ":*/") {
-			tmp = tmp[:strings.LastIndex(tmp, ":*")] + `[^\s/]+`
-		}
-
-		// 处理中间部分
-		tmp = strings.Replace(tmp, ":**", `[^\s]+`, -1)
-		tmp = strings.Replace(tmp, ":*", `[^\s/]+`, -1)
-
-		return tmp + "$"
-	}
-}
-
-// doFilter 根据注册的过滤器表调用对应的函数
-// 优先匹配全url > 正则url > 全局过滤器 > 直接通过
-func (srt *ServiceRouter) doFilter(w http.ResponseWriter, r *http.Request) {
-	// 1. 执行正则url过滤器, 有命中则返回true
-	if srt.doExecuteExpFilter(w, r) {
-		return
-	}
-
-	// 2. 检查是否有全局过滤器存在, 如果有则执行它
-	if nil != srt.defaultFileter {
-		srt.debugLog("[URL.Filter.Default]", r.URL.Path)
-		if srt.defaultFileter(w, r) {
-			srt.doHandle(w, r)
-		}
-		return
-	}
-
-	// 3. 啥也没有设定
-	srt.doHandle(w, r)
-}
-
-// doExecuteExpFilter 执行正则url过滤器, 有命中则返回true
-func (srt *ServiceRouter) doExecuteExpFilter(w http.ResponseWriter, r *http.Request) bool {
-	if matched := srt.getMatchedFilter(r.URL.Path); len(matched) > 0 {
-		for i := 0; i < len(matched); i++ {
-			if h, ok := srt.regexpFilters.Get(matched[i]); ok {
-				srt.debugLog("[URL.Filter]", matched[i])
-				if !h(w, r) {
-					return true
-				}
-			}
-		}
-
-		// 符合所有过滤器要求
-		srt.doHandle(w, r)
-		return true
-	}
-	return false
-}
-
-// getMatchedFilter 获取匹配的过滤器
-func (srt *ServiceRouter) getMatchedFilter(urlPath string) []string {
-	if len(srt.regexpFiltersIndex) == 0 || len(urlPath) == 0 {
-		return nil
-	}
-
-	matched := make([]string, 0)
-	for i := 0; i < len(srt.regexpFiltersIndex); i++ {
-		var symbolIndex int
-		if symbolIndex = strings.Index(srt.regexpFiltersIndex[i], ":"); symbolIndex == -1 {
-			if urlPath == srt.regexpFiltersIndex[i] {
-				matched = append(matched, srt.regexpFiltersIndex[i])
-			}
-			continue
-		}
-
-		// 正则匹配
-		if baseURL := srt.regexpFiltersIndex[i][:symbolIndex]; strings.HasPrefix(urlPath, baseURL) {
-			if ok, _ := regexp.MatchString(srt.getRegexpStr(srt.regexpFiltersIndex[i][symbolIndex+1:]), urlPath[symbolIndex:]); ok {
-				matched = append(matched, srt.regexpFiltersIndex[i])
-			}
-		}
-	}
-	return matched
-}
-
-// ServeHTTP 实现http.Server接口的ServeHTTP方法
+// ServeHTTP 实现 http.Handler 接口, 处理所有 HTTP 请求
 func (srt *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); nil != err {
@@ -241,160 +91,266 @@ func (srt *ServiceRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	srt.checkInit()
 	srt.doFilter(w, r)
 }
 
-// ClearHandlersMap 清空路由表
-func (srt *ServiceRouter) ClearHandlersMap() {
-	srt.urlHandlers.Clear()
-	srt.regexpHandlers.Clear()
-	srt.regexpHandlersIndex = make([]string, 0)
-}
-
-// SetDebug 是否输出url请求信息
+// SetDebug 设置是否启用调试模式, 启用后会输出详细的请求处理日志
 func (srt *ServiceRouter) SetDebug(isDebug bool) {
 	srt.isDebug = isDebug
 }
 
-// SetDefaultHandler 设置默认响应函数, 当无匹配时触发
+// SetDefaultHandler 设置默认的请求处理器, 当没有匹配的路由时被调用
 func (srt *ServiceRouter) SetDefaultHandler(defaultHandler HandlerFunc) {
 	logs.Debugln("The default handler has been set")
 	srt.defaultHandler = defaultHandler
 }
 
-// SetRuntimeErrorHandler 设置全局handler执行异常捕获
+// SetRuntimeErrorHandler 设置运行时错误处理函数, 用于处理请求处理过程中的panic
 func (srt *ServiceRouter) SetRuntimeErrorHandler(h RuntimeErrorHandlerFunc) {
 	srt.runtimeError = h
 }
 
-// SetDefaultFilter 设置默认过滤器, 设置后, 如果不调用next函数则不进行下一步处理
-// type FilterFunc func(http.ResponseWriter, *http.Request, func( ))
+// SetDefaultFilter 设置默认的请求过滤器, 在所有特定路由过滤器之后执行
 func (srt *ServiceRouter) SetDefaultFilter(globalFilter FilterFunc) {
 	logs.Debugln("The default filter has been set")
 	srt.defaultFileter = globalFilter
 }
 
-// AddURLFilter 设置url过滤器, 设置后, 如果不调用next函数则不进行下一步处理
-// 过滤器有优先调用权, 正则匹配路径有先后顺序
-// type FilterFunc func(http.ResponseWriter, *http.Request, func( ))
+// AddURLFilter 添加URL过滤器, 如: /api/**
 func (srt *ServiceRouter) AddURLFilter(url string, filter FilterFunc) error {
+	url = strutil.Parse2UnixPath(url)
 	if len(url) == 0 {
 		return errors.New("filter url is empty")
+	} else {
+		logs.Debugln("AddURLFilter: ", url)
 	}
-	srt.checkInit()
-	url = parse2UnixPath(url)
-	logs.Debugln("AddURLFilter: ", url)
-	srt.regexpFilters.Put(url, filter)
-	srt.addFilterIndex(url)
+
+	entry := &URLFilterEntry{
+		matcher: NewURLMatcher(url),
+		filter:  filter,
+	}
+	srt.urlFilters.Put(routerKey(url), entry)
+	srt.appendAndSortFilterIndex(url)
 	return nil
 }
 
-// addFilterIndex 添加filter索引, 安装路径长度排序
-func (srt *ServiceRouter) addFilterIndex(url string) {
-	newArray := append(srt.regexpFiltersIndex, url)
-	strutil.SortByLen(newArray, true)
-	strutil.SortBySplitLen(newArray, "/", true)
-	srt.regexpFiltersIndex = newArray
-}
-
-// removeFilterIndex 删除filter索引
-func (srt *ServiceRouter) removeFilterIndex(url string) {
-	if len(url) > 0 {
-		for i := 0; i < len(srt.regexpFiltersIndex); i++ {
-			if srt.regexpFiltersIndex[i] == url {
-				srt.regexpFiltersIndex = append(srt.regexpFiltersIndex[:i], srt.regexpFiltersIndex[i+i:]...)
-				break
-			}
-		}
+// AddHandler 添加URL处理器, 如: POST /api/:*, GET /api/:id
+func (srt *ServiceRouter) AddHandler(method, url string, handler HandlerFunc) error {
+	surl, err := srt.buildHandlerURL(method, url)
+	if err != nil {
+		return err
 	}
+	logs.Debugln("AddHandler:", surl)
+
+	entry := &HandlerEntry{
+		matcher: NewURLMatcher(url),
+		handler: handler,
+		method:  srt.formatMethod(method),
+	}
+
+	srt.urlHandlers.Put(routerKey(surl), entry)
+	srt.appendAndSortHandlerIndex(surl)
+	return nil
 }
 
-// RemoveFilter 删除一个过滤器
+// RemoveFilter 移除指定URL的过滤器
 func (srt *ServiceRouter) RemoveFilter(url string) {
 	if len(url) == 0 {
 		return
 	}
 	logs.Debugln("RemoveFilter:", url)
-	if nil != srt.regexpFilters && srt.regexpFilters.ContainsKey(url) {
-		srt.regexpFilters.Delete(url)
-		srt.removeFilterIndex(url)
+	if nil != srt.urlFilters && srt.urlFilters.ContainsKey(routerKey(url)) {
+		srt.urlFilters.Delete(routerKey(url))
+		srt.deleteFilterIndex(url)
 	}
 }
 
-// AddHandler 添加handler
-// 全匹配和正则匹配分开存放, 正则表达式以':'符号开始, 如: /upload/:\S+
-func (srt *ServiceRouter) AddHandler(method, url string, handler HandlerFunc) error {
-	srt.checkInit()
-	if surl, err := buildHandlerURL(method, parse2UnixPath(url)); nil != err {
-		return err
+// RemoveHandler 移除指定URL和方法的处理器
+func (srt *ServiceRouter) RemoveHandler(method, url string) {
+	surl, err := srt.buildHandlerURL(method, url)
+	if err != nil {
+		return
+	}
+	logs.Debugln("RemoveHandler:", surl)
+
+	if srt.urlHandlers.ContainsKey(routerKey(surl)) {
+		srt.urlHandlers.Delete(routerKey(surl))
+		srt.deleteHandlerIndex(surl)
+	}
+}
+
+// ClearHandlersMap 清空所有注册的处理器
+func (srt *ServiceRouter) ClearHandlersMap() {
+	srt.urlHandlers.Clear()
+	srt.handlersIndex = make([]string, 0)
+}
+
+// doFilter 使用URLMatcher重新实现
+func (srt *ServiceRouter) doFilter(w http.ResponseWriter, r *http.Request) {
+	// 1. 执行URL过滤器匹配
+	if srt.doExecuteURLFilter(w, r) {
+		return
+	}
+
+	// 2. 检查是否有全局过滤器存在
+	if nil != srt.defaultFileter {
+		srt.debugLog("[URL.Filter.Default]", r.URL.Path)
+		if srt.defaultFileter(w, r) {
+			srt.doHandle(w, r)
+		}
+		return
+	}
+
+	// 3. 无过滤器情况
+	srt.doHandle(w, r)
+}
+
+// doExecuteURLFilter 用URLMatcher执行过滤器匹配
+func (srt *ServiceRouter) doExecuteURLFilter(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+
+	// 按照注册顺序遍历所有过滤器
+	for _, pattern := range srt.urlFiltersIndex {
+		if entry, ok := srt.urlFilters.Get(routerKey(pattern)); ok {
+			if entry.matcher.Match(path) {
+				srt.debugLog("[URL.Filter]", pattern)
+				if !entry.filter(w, r) {
+					return true
+				}
+			}
+		}
+	}
+
+	// 所有匹配的过滤器都通过
+	srt.doHandle(w, r)
+	return true
+}
+
+// ServiceRouter 根据注册的路由表调用对应的函数, 优先级: 匹配url > 默认处理器 > 404
+func (srt *ServiceRouter) doHandle(w http.ResponseWriter, r *http.Request) {
+	if entry := srt.findMatchingHandler(r); entry != nil {
+		srt.executeHandler(w, r, entry)
+		return
+	}
+
+	// 使用默认处理器
+	if srt.defaultHandler != nil {
+		srt.debugLog("[URL.Handler.Default]", r.URL.Path)
+		srt.defaultHandler(w, r)
 	} else {
-		logs.Debugln("AddHandler:", surl)
-		if strings.Contains(url, ":") {
-			srt.regexpHandlers.Put(surl, handler)
-			srt.addHandlerIndex(surl)
-		} else {
-			srt.urlHandlers.Put(surl, handler)
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// findMatchingHandler 查找匹配的处理器
+func (srt *ServiceRouter) findMatchingHandler(r *http.Request) *HandlerEntry {
+	for _, pattern := range srt.handlersIndex {
+		if entry, ok := srt.urlHandlers.Get(routerKey(pattern)); ok {
+			if entry.method != "ANY" && entry.method != r.Method {
+				continue
+			}
+			if entry.matcher.Match(r.URL.Path) {
+				srt.debugLog("[URL.Handler]", pattern)
+				return entry
+			}
 		}
 	}
 	return nil
 }
 
-// addHandlerIndex 添加handler索引, 安装路径长度排序
-func (srt *ServiceRouter) addHandlerIndex(url string) {
-	newArray := append(srt.regexpHandlersIndex, url)
-	strutil.SortByLen(newArray, true)
-	strutil.SortBySplitLen(newArray, "/", true)
-	srt.regexpHandlersIndex = newArray
+// executeHandler 执行处理器
+func (srt *ServiceRouter) executeHandler(w http.ResponseWriter, r *http.Request, entry *HandlerEntry) {
+	if srt.enableURLParam {
+		params := entry.matcher.GetParams(r.URL.Path)
+		ctx := context.WithValue(r.Context(), urlParamsKey, params)
+		entry.handler(w, r.WithContext(ctx))
+	} else {
+		entry.handler(w, r)
+	}
 }
 
-// removeHandlerIndex 删除handler索引, surl: 'POST /api'
-func (srt *ServiceRouter) removeHandlerIndex(surl string) {
-	if len(surl) > 0 {
-		for i := 0; i < len(srt.regexpHandlersIndex); i++ {
-			if srt.regexpHandlersIndex[i] == surl {
-				srt.regexpHandlersIndex = append(srt.regexpHandlersIndex[:i], srt.regexpHandlersIndex[i+i:]...)
+// appendAndSortHandlerIndex 添加handler索引, 按照路径层级深度排序
+func (srt *ServiceRouter) appendAndSortHandlerIndex(url string) {
+	// 添加新的URL到索引中
+	newArray := append(srt.handlersIndex, url)
+
+	// 按照路径层级深度排序
+	sort.Slice(newArray, func(i, j int) bool {
+		// 提取路径部分（去掉HTTP方法）
+		pathI := strings.SplitN(newArray[i], " ", 2)[1]
+		pathJ := strings.SplitN(newArray[j], " ", 2)[1]
+
+		// 计算路径层级深度
+		depthI := len(strings.Split(strings.Trim(pathI, "/"), "/"))
+		depthJ := len(strings.Split(strings.Trim(pathJ, "/"), "/"))
+
+		// 层级深度相同时, 按照路径长度排序
+		if depthI == depthJ {
+			return len(pathI) < len(pathJ)
+		}
+
+		// 按照层级深度从小到大排序
+		return depthI < depthJ
+	})
+
+	srt.handlersIndex = newArray
+}
+
+// appendAndSortFilterIndex 添加filter索引, 按照路径层级深度排序
+func (srt *ServiceRouter) appendAndSortFilterIndex(url string) {
+	newArray := append(srt.urlFiltersIndex, url)
+	sort.Slice(newArray, func(i, j int) bool {
+		depthI := len(strings.Split(strings.Trim(newArray[i], "/"), "/"))
+		depthJ := len(strings.Split(strings.Trim(newArray[j], "/"), "/"))
+		if depthI == depthJ {
+			return len(newArray[i]) < len(newArray[j])
+		}
+		return depthI < depthJ
+	})
+	srt.urlFiltersIndex = newArray
+}
+
+// deleteFilterIndex 删除filter索引
+func (srt *ServiceRouter) deleteFilterIndex(url string) {
+	if len(url) > 0 {
+		for i := 0; i < len(srt.urlFiltersIndex); i++ {
+			if srt.urlFiltersIndex[i] == url {
+				srt.urlFiltersIndex = append(srt.urlFiltersIndex[:i], srt.urlFiltersIndex[i+i:]...)
 				break
 			}
 		}
 	}
 }
 
-// RemoveHandler 删除一个路由表
-func (srt *ServiceRouter) RemoveHandler(method, url string) {
-	if len(url) == 0 {
-		return
-	}
-	logs.Debugln("RemoveHandler:", url)
-	surl, _ := buildHandlerURL(method, url)
-	if nil != srt.regexpHandlers && srt.regexpHandlers.ContainsKey(surl) {
-		srt.regexpHandlers.Delete(surl)
-		srt.removeHandlerIndex(surl)
-	}
-	if nil != srt.urlHandlers {
-		srt.urlHandlers.Delete(surl)
+// deleteHandlerIndex 删除handler索引
+func (srt *ServiceRouter) deleteHandlerIndex(url string) {
+	if len(url) > 0 {
+		for i := 0; i < len(srt.handlersIndex); i++ {
+			if srt.handlersIndex[i] == url {
+				srt.handlersIndex = append(srt.handlersIndex[:i], srt.handlersIndex[i+1:]...)
+				break
+			}
+		}
 	}
 }
 
-// checkInit 检查是否初始化了
-func (srt *ServiceRouter) checkInit() {
+// initializeServiceRouter 修改初始化方法
+func (srt *ServiceRouter) initializeServiceRouter() {
 	if srt.initial {
 		return
 	}
 	srt.initial = true
+	srt.enableURLParam = true
 
-	if nil == srt.regexpHandlers {
-		srt.regexpHandlers = utypes.NewSafeMap[string, HandlerFunc]()
-		srt.regexpHandlersIndex = make([]string, 0)
-	}
 	if nil == srt.urlHandlers {
-		srt.urlHandlers = utypes.NewSafeMap[string, HandlerFunc]()
+		srt.urlHandlers = utypes.NewSafeMap[routerKey, *HandlerEntry]()
+		srt.handlersIndex = make([]string, 0)
 	}
-	if nil == srt.regexpFilters {
-		srt.regexpFilters = utypes.NewSafeMap[string, FilterFunc]()
+	if nil == srt.urlFilters {
+		srt.urlFilters = utypes.NewSafeMap[routerKey, *URLFilterEntry]()
 	}
-	if nil == srt.regexpFiltersIndex {
-		srt.regexpFiltersIndex = make([]string, 0)
+	if nil == srt.urlFiltersIndex {
+		srt.urlFiltersIndex = make([]string, 0)
 	}
 	if nil == srt.runtimeError {
 		srt.runtimeError = func(rw http.ResponseWriter, r *http.Request, err any) {
@@ -404,29 +360,41 @@ func (srt *ServiceRouter) checkInit() {
 	}
 }
 
-// Parse2UnixPath 格式化入参路径
-func parse2UnixPath(url string) string {
-	if i := strings.Index(url, ":"); i > 0 {
-		return strutil.Parse2UnixPath(url[:i+1]) + url[i+1:]
-	} else {
-		url = strutil.Parse2UnixPath(url)
+// debugLog 调试日志记录
+func (srt *ServiceRouter) debugLog(msg ...any) {
+	if srt.isDebug {
+		logs.Debugln(msg...)
 	}
-	return url
 }
 
-// 格式method
-func formatMethod(method string) string {
+// formatMethod 格式method
+func (srt *ServiceRouter) formatMethod(method string) string {
 	if method = strings.TrimSpace(method); len(method) == 0 {
 		return "ANY"
 	}
 	return strings.ToUpper(method)
 }
 
-// 拼接存储url, 格式: POST /api/:S+
-func buildHandlerURL(method, url string) (string, error) {
+// buildHandlerURL 拼接存储url, 格式: POST /api/:*
+func (srt *ServiceRouter) buildHandlerURL(method, url string) (string, error) {
 	if url = strings.TrimSpace(url); len(url) == 0 {
 		return "", errors.New("handler url is empty")
 	}
-	method = formatMethod(method)
+	method = srt.formatMethod(method)
 	return method + " " + url, nil
+}
+
+// EnableURLParam 设置是否启用URL参数注入到请求上下文中
+func (srt *ServiceRouter) EnableURLParam(enable bool) {
+	srt.enableURLParam = enable
+}
+
+// GetURLParam 从请求上下文中获取URL参数值
+// paramName: 参数名
+// 返回参数值, 如果参数不存在则返回空字符串
+func GetURLParam(r *http.Request, paramName string) string {
+	if params, ok := r.Context().Value(urlParamsKey).(map[string]string); ok {
+		return params[paramName]
+	}
+	return ""
 }

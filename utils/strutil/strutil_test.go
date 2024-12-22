@@ -15,18 +15,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 )
-
-func TestGetUUID(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		fmt.Println("GetUUID", GetUUID())
-	}
-	for i := 0; i < 10; i++ {
-		fmt.Println("GetUUID", GetUUID())
-		time.Sleep(time.Nanosecond)
-	}
-}
 
 func TestSortByLen(t *testing.T) {
 	array := []string{"/api/user", "/", "/api", "/api/xxxx"}

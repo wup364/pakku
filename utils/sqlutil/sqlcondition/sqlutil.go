@@ -1,4 +1,4 @@
-// Copyright (C) 2023 WuPeng <wup364@outlook.com>.
+// Copyright (C) 2024 WuPeng <wup364@outlook.com>.
 // Use of this source code is governed by an MIT-style.
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction,
 // including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -7,46 +7,22 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlutil
+package sqlcondition
 
 import (
-	"errors"
-	"strconv"
+	"fmt"
 	"strings"
 )
 
-// SqlConditionConcatForWhere 根据传入参数在原有sql基础上where条件, 自动跳过空值条件
-func SqlConditionConcatForWhere(sql, separator string, conditions []string, fields ...string) string {
-	sqlConditionStr := SqlConditionConcat(separator, conditions, fields...)
-	if len(sqlConditionStr) == 0 {
-		return sql
-	}
-	return sql + " WHERE " + sqlConditionStr
-}
+const (
+	// SQL 分页模板
+	mysqlTemplate  = "%s LIMIT %d OFFSET %d"
+	mssqlTemplate  = "SELECT * FROM (SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS RowNum, t.* FROM (%s) t) AS temp WHERE RowNum BETWEEN %d AND %d"
+	oracleTemplate = "SELECT * FROM (SELECT a.*, ROWNUM rn FROM (%s) a WHERE ROWNUM <= %d) WHERE rn > %d"
+)
 
-// SqlConditionConcat 根据传入参数拼接Sql条件, 自动跳过空值条件
-func SqlConditionConcat(separator string, conditions []string, fields ...string) (res string) {
-	lenf := len(fields)
-	lenc := len(conditions)
-	if lenc == 0 || lenf == 0 || lenc < lenf {
-		return
-	}
-
-	wheres := make([]string, 0)
-	for i := 0; i < lenf; i++ {
-		if len(fields[i]) > 0 {
-			wheres = append(wheres, strings.TrimSpace(conditions[i]))
-		}
-	}
-
-	if len(wheres) > 0 {
-		res = strings.Join(wheres, " "+strings.TrimSpace(separator)+" ")
-	}
-	return
-}
-
-// SqlConditionConcatForPageable 根据不同数据库拼接分页参数, 不支持的driverName返回错误
-func SqlConditionConcatForPageable(sql, driverName string, limit, offset int) (newsql string, err error) {
+// BuildPaginationSql 根据不同数据库拼接分页参数
+func BuildPaginationSql(sql, driverName string, limit, offset int) (string, error) {
 	driverName = strings.ToUpper(driverName)
 
 	// 别名处理
@@ -56,18 +32,22 @@ func SqlConditionConcatForPageable(sql, driverName string, limit, offset int) (n
 		driverName = "MYSQL"
 	} else if strings.Contains(driverName, "ORACLE") {
 		driverName = "ORACLE"
+	} else if strings.Contains(driverName, "POSTGRES") {
+		driverName = "POSTGRES"
+	} else if strings.Contains(driverName, "MSSQL") {
+		driverName = "MSSQL"
 	}
 
-	//
 	switch driverName {
-	case "MYSQL", "SQLITE":
-		newsql = sql + " LIMIT " + strconv.Itoa(limit) + " OFFSET " + strconv.Itoa(offset)
-		return
+	case "MYSQL", "SQLITE", "POSTGRES":
+		return fmt.Sprintf(mysqlTemplate, sql, limit, offset), nil
 	case "ORACLE":
-		newsql = "SELECT * FROM (SELECT a.*, ROWNUM r FROM (" + sql + ") a WHERE ROWNUM <= " + strconv.Itoa(offset+limit) + ") WHERE r > " + strconv.Itoa(offset)
-		return
+		endRow := offset + limit
+		return fmt.Sprintf(oracleTemplate, sql, endRow, offset), nil
+	case "MSSQL":
+		return fmt.Sprintf(mssqlTemplate, sql, offset+1, offset+limit), nil
 	default:
-		return "", errors.New("unsupported database connection type")
+		return "", fmt.Errorf("unsupported database type: %s", driverName)
 	}
 }
 

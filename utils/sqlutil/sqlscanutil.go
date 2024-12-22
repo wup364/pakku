@@ -13,8 +13,11 @@ import (
 	"database/sql"
 )
 
+// Scan sql.Rows.Scan
+type Scan func(...any) error
+
 // RowScan 行扫
-type RowScan[T any] func(scan func(...any) error) (obj T, err error)
+type RowScan[T any] func(scan Scan) (obj T, err error)
 
 // ScanFirstOneAndClose 扫描返回值只有一个的结果, 并自动关闭 sql.Rows
 func ScanFirstOneAndClose[T any](rows *sql.Rows) (res T, err error) {

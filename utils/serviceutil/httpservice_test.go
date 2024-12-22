@@ -19,7 +19,7 @@ import (
 func TestHttpService(t *testing.T) {
 	svr := NewHTTPService()
 	svr.SetDebug(true)
-	svr.Get("/hello/:[0-9]*$", func(w http.ResponseWriter, r *http.Request) {
+	svr.Get("/hello/:*", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello : " + r.Method + ": " + r.URL.String()))
 	})
 	if err := svr.StartHTTP(StartHTTPConf{
@@ -27,9 +27,4 @@ func TestHttpService(t *testing.T) {
 	}); nil != err {
 		logs.Panicln(err)
 	}
-}
-
-func TestGetRegexpStr(t *testing.T) {
-	res := NewHTTPService().getRegexpStr("**/item:*/item1/:*/item2/:**/prefix:*")
-	t.Log(res)
 }

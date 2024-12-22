@@ -12,55 +12,131 @@
 package strutil
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"math"
 	"math/rand"
+	"sync"
 	"time"
 )
 
-// 初始化机器ID, 避免每次都算
-var machineByte []byte
-var lastNano uint64
-var lastSeq uint
+const (
+	// 时钟回拨最大容忍时间
+	maxBackwardsDrift = time.Second * 10
+	// 序列号最大值
+	maxSequence = math.MaxUint32
+)
 
-// 初始化机器ID, 避免每次都算
+var (
+	mu          sync.Mutex
+	lastNano    uint64       // 上次的时间戳
+	lastSeq     uint32       // 序列号
+	timeOffset  uint64       // 时间偏移量
+	machineByte []byte       // 机器ID
+	rnd         *rand.Rand   // 随机数生成器
+	startTime   = time.Now() // 程序启动时间
+
+	// 1. 使用对象池减少内存分配
+	bufferPool = sync.Pool{
+		New: func() interface{} {
+			return new(bytes.Buffer)
+		},
+	}
+
+	// 2. 预分配固定大小的字节数组
+	timeBytes   = make([]byte, 8)
+	seqBytes    = make([]byte, 4)
+	randomBytes = make([]byte, 4)
+)
+
 func init() {
-	machineid, err := GetMachineID()
-	if nil != err {
+	// 初始化随机数生成器
+	rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// 初始化机器ID
+	if id, err := GetMachineID(); err != nil {
+		panic(err)
+	} else if machineByte, err = hex.DecodeString(id); err != nil {
 		panic(err)
 	}
-	machineByte, err = hex.DecodeString(machineid)
-	if nil != err {
-		panic(err)
-	}
+
+	// 每小时重置随机数种子
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			mu.Lock()
+			rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+			mu.Unlock()
+		}
+	}()
 }
 
-// GetUUID 获取唯一ID(机器+纳秒时间+纳秒内自增序列+随机数)
+// GetUUID 生成UUID [机器ID 2字节][时间戳 8字节][序列号 3字节][随机数 3字节]
 func GetUUID() string {
-	// 当前时间(纳秒) 64bit
-	ctime := make([]byte, 8)
-	if nownano := uint64(time.Now().UnixNano()); nownano == lastNano {
-		// 同一纳秒内, 随机序列数值+1
-		lastSeq++
-		binary.BigEndian.PutUint64(ctime, nownano)
-	} else {
-		// 每纳秒形成一个新的随机数值
-		lastNano = nownano
-		lastSeq = uint(rand.Int31())
-		binary.BigEndian.PutUint64(ctime, nownano)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// 从对象池获取buffer
+	buf := bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufferPool.Put(buf)
+
+	// 预分配空间
+	if buf.Cap() < 16 {
+		buf.Grow(16)
 	}
-	// 随机数 32bit
-	random := make([]byte, 4)
-	binary.BigEndian.PutUint32(random, uint32(rand.Int31()))
-	// 纳秒内自增序列 32bit
-	randomSeq := make([]byte, 4)
-	binary.BigEndian.PutUint32(randomSeq, uint32(lastSeq))
-	// 汇总计算
-	buffer := make([]byte, 0, 16)
-	buffer = append(buffer, machineByte[14:]...) // 2
-	buffer = append(buffer, ctime...)            // 8
-	buffer = append(buffer, randomSeq[1:]...)    // 3
-	buffer = append(buffer, random[1:]...)       // 3
-	// hex一下
-	return hex.EncodeToString(buffer)
+
+	// 写入机器ID (2字节)
+	buf.Write(machineByte[14:])
+
+	// 写入时间戳 (8字节)
+	timestamp := getTimestamp()
+	binary.BigEndian.PutUint64(timeBytes, timestamp)
+	buf.Write(timeBytes)
+
+	// 写入序列号 (3字节)
+	binary.BigEndian.PutUint32(seqBytes, lastSeq)
+	buf.Write(seqBytes[1:])
+
+	// 写入随机数 (3字节)
+	binary.BigEndian.PutUint32(randomBytes, uint32(rnd.Int31()))
+	buf.Write(randomBytes[1:])
+
+	return hex.EncodeToString(buf.Bytes())
+}
+
+// getTimestamp 获取时间戳并处理时钟回拨
+func getTimestamp() uint64 {
+	timestamp := uint64(time.Now().UnixNano())
+
+	// 处理时钟回拨
+	if timestamp < lastNano {
+		drift := lastNano - timestamp
+
+		if drift > uint64(maxBackwardsDrift) {
+			// 回拨超过阈值，使用程序运行时间
+			timestamp = uint64(startTime.UnixNano() + int64(time.Since(startTime)))
+		} else {
+			// 小范围回拨，使用偏移量
+			timeOffset += drift
+			timestamp += timeOffset
+		}
+	}
+
+	// 确保时间戳递增
+	if timestamp <= lastNano {
+		if lastSeq == maxSequence {
+			timestamp = lastNano + 1
+			lastSeq = 0
+		} else {
+			lastSeq++
+		}
+	} else {
+		lastSeq = 0
+	}
+
+	lastNano = timestamp
+	return timestamp
 }
