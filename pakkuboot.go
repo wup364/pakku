@@ -101,7 +101,10 @@ func (boot *ApplicationBootBuilder) BootStart() ipakku.PakkuApplication {
 	cwd, _ := os.Getwd()
 	instanceID := strings.ToUpper(boot.loader.GetInstanceID())
 	name := boot.loader.GetParam(ipakku.PARAMS_KEY_APPNAME).ToString(ipakku.DEFT_VAL_APPNAME)
-	logs.Infof("New application, name: %s, pid: %d, cwd: %s, instance: %s ", name, os.Getpid(), cwd, instanceID)
+	fmt.Printf("pid: %d\r\n", os.Getpid())
+	fmt.Printf("name: %s\r\n", name)
+	fmt.Printf("instance: %s\r\n", instanceID)
+	fmt.Printf("cwd: %s\r\n", cwd)
 	boot.loader.Loads(boot.modules...)
 
 	boot.pakapp = &PakkuApplication{
@@ -158,23 +161,13 @@ func (boot *ApplicationBootBuilder) printBanner() {
 	bannerPath := ".conf/banner.txt"
 	if !fileutil.IsFile(bannerPath) {
 		banner := "" +
-			"              ,----------------,              ,---------, \r\n" +
-			"         ,-----------------------,          ,\"        ,\"| \r\n" +
-			"       ,\"                      ,\"|        ,\"        ,\"  | \r\n" +
-			"      +-----------------------+  |      ,\"        ,\"    | \r\n" +
-			"      |  .-----------------.  |  |     +---------+      | \r\n" +
-			"      |  |                 |  |  |     | -==----'|      | \r\n" +
-			"      |  |  I AM RUNNING!  |  |  |     |         |      | \r\n" +
-			"      |  |  PLEASE WAIT .. |  |  |/----|'---=    |      | \r\n" +
-			"      |  |  $ >_           |  |  |   ,/|==== ooo |      ; \r\n" +
-			"      |  |                 |  |  |  // |(((( [33]|    ,\" \r\n" +
-			"      |  '-----------------'  |,\" .;'| |((((     |  ,\" \r\n" +
-			"      +-----------------------\"  ;;  | |         |,\" \r\n" +
-			"         /_)______________(_/   /    | +---------+ \r\n" +
-			"    ___________________________/___  ', \r\n" +
-			"   /  oooooooooooooooo  .o.  oooo /,   \\,\"----------- \r\n" +
-			"  / ==ooooooooooooooo==.o.  ooo= //   ,'\\--{)B     ,\" \r\n" +
-			" /_==__==========__==_ooo__ooo=_/'   /___________,\" \r\n"
+			"              _    _             \r\n" +
+			"  _ __   __ _| | _| | ___   _    \r\n" +
+			" | '_ \\ / _` | |/ / |/ / | | |   \r\n" +
+			" | |_) | (_| |   <|   <| |_| |   \r\n" +
+			" | .__/ \\__,_|_|\\_\\_|\\_\\__,_|   \r\n" +
+			" |_|                          "
+
 		if err := fileutil.WriteTextFile(bannerPath, banner); nil != err {
 			logs.Error(err)
 		} else {
