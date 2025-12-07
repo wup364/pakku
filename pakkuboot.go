@@ -1,11 +1,5 @@
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2019 WuPeng <wup364@outlook.com>.
-// Use of jsoncfg source code is governed by an MIT-style.
-// Permission is hereby granted, free of charge, to any person obtaining a copy of jsoncfg software and associated documentation files (the "Software"), to deal in the Software without restriction,
-// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and jsoncfg permission notice shall be included in all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // 入口包
 
@@ -18,15 +12,16 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/wup364/pakku/internal/mloader"
+	"github.com/wup364/pakku/internal/modules/appcache"
+	"github.com/wup364/pakku/internal/modules/appconfig"
+	"github.com/wup364/pakku/internal/modules/appevent"
+	"github.com/wup364/pakku/internal/modules/appservice"
+	"github.com/wup364/pakku/internal/modules/appstaticpage"
 	"github.com/wup364/pakku/ipakku"
-	"github.com/wup364/pakku/mloader"
-	"github.com/wup364/pakku/modules/appcache"
-	"github.com/wup364/pakku/modules/appconfig"
-	"github.com/wup364/pakku/modules/appevent"
-	"github.com/wup364/pakku/modules/appservice"
-	"github.com/wup364/pakku/utils/fileutil"
-	"github.com/wup364/pakku/utils/logs"
-	"github.com/wup364/pakku/utils/reflectutil"
+	"github.com/wup364/pakku/pkg/fileutil"
+	"github.com/wup364/pakku/pkg/logs"
+	"github.com/wup364/pakku/pkg/reflectutil"
 )
 
 // NewApplication 新建应用加载器
@@ -95,20 +90,22 @@ func (boot *ApplicationBootBuilder) BootStart() ipakku.PakkuApplication {
 	boot.locker.Lock()
 	defer boot.locker.Unlock()
 
-	if boot.pakapp == nil {
-		if boot.pkconf.showBanner {
-			boot.printBanner()
-		}
+	if boot.pakapp != nil {
+		return boot.pakapp
+	}
 
-		cwd, _ := os.Getwd()
-		instanceID := strings.ToUpper(boot.loader.GetInstanceID())
-		name := boot.loader.GetParam(ipakku.PARAMS_KEY_APPNAME).ToString(ipakku.DEFT_VAL_APPNAME)
-		logs.Infof("New application, name: %s, pid: %d, cwd: %s, instance: %s \r\n", name, os.Getpid(), cwd, instanceID)
-		boot.loader.Loads(boot.modules...)
+	if boot.pkconf.showBanner {
+		boot.printBanner()
+	}
 
-		boot.pakapp = &PakkuApplication{
-			Application: boot.loader.GetApplication(),
-		}
+	cwd, _ := os.Getwd()
+	instanceID := strings.ToUpper(boot.loader.GetInstanceID())
+	name := boot.loader.GetParam(ipakku.PARAMS_KEY_APPNAME).ToString(ipakku.DEFT_VAL_APPNAME)
+	logs.Infof("New application, name: %s, pid: %d, cwd: %s, instance: %s ", name, os.Getpid(), cwd, instanceID)
+	boot.loader.Loads(boot.modules...)
+
+	boot.pakapp = &PakkuApplication{
+		Application: boot.loader.GetApplication(),
 	}
 
 	return boot.pakapp
@@ -158,7 +155,7 @@ func (boot *ApplicationBootBuilder) getModuleName(mt ipakku.Module) string {
 
 // printBanner 打印一些特殊记号
 func (boot *ApplicationBootBuilder) printBanner() {
-	bannerPath := "./.conf/banner.txt"
+	bannerPath := ".conf/banner.txt"
 	if !fileutil.IsFile(bannerPath) {
 		banner := "" +
 			"              ,----------------,              ,---------, \r\n" +
@@ -179,13 +176,13 @@ func (boot *ApplicationBootBuilder) printBanner() {
 			"  / ==ooooooooooooooo==.o.  ooo= //   ,'\\--{)B     ,\" \r\n" +
 			" /_==__==========__==_ooo__ooo=_/'   /___________,\" \r\n"
 		if err := fileutil.WriteTextFile(bannerPath, banner); nil != err {
-			logs.Errorln(err)
+			logs.Error(err)
 		} else {
 			fmt.Println(banner)
 		}
 	} else {
 		if banner, err := fileutil.ReadFileAsText(bannerPath); nil != err {
-			logs.Errorln(err)
+			logs.Error(err)
 		} else {
 			fmt.Println(banner)
 		}
@@ -266,6 +263,13 @@ func (pkm *PakkuModuleBuilder) EnableAppEvent() ipakku.PakkuModuleBuilder {
 // EnableAppService 启用网络服务[WEB|RPC]模块
 func (pkm *PakkuModuleBuilder) EnableAppService() ipakku.PakkuModuleBuilder {
 	pkm.boot.addModule(new(appservice.AppService))
+	return pkm
+}
+
+// EnableAppStaticPage 启用静态页面模块, 依赖 AppService 模块
+func (pkm *PakkuModuleBuilder) EnableAppStaticPage() ipakku.PakkuModuleBuilder {
+	pkm.EnableAppService()
+	pkm.boot.addModules(new(appstaticpage.StaticPageLoader))
 	return pkm
 }
 

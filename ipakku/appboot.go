@@ -1,18 +1,12 @@
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2019 WuPeng <wup364@outlook.com>.
-// Use of this source code is governed by an MIT-style.
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction,
-// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package ipakku
 
 import (
 	"io"
 
-	"github.com/wup364/pakku/utils/logs"
+	"github.com/wup364/pakku/pkg/logs"
 )
 
 // ApplicationBootBuilder 应用初始化引导
@@ -77,6 +71,9 @@ type PakkuModuleBuilder interface {
 
 	// EnableAppService 启用网络服务[WEB|RPC]模块
 	EnableAppService() PakkuModuleBuilder
+
+	// EnableAppStaticPage 启用静态页面模块, 依赖 AppService 模块
+	EnableAppStaticPage() PakkuModuleBuilder
 
 	// CustomModules 自定义模块操作
 	CustomModules() CustomModuleBuilder

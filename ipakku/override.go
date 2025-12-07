@@ -1,11 +1,5 @@
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2019 WuPeng <wup364@outlook.com>.
-// Use of this source code is governed by an MIT-style.
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction,
-// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // 1. 通过重新实现 ixxx.go 接口
 // 2. 在对应模块初始化之前注册实例 ipakku.Override.RegisterPakkuModuleImplement(val, interface-name, name) (如: init方法)
@@ -16,8 +10,8 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/wup364/pakku/utils/reflectutil"
-	"github.com/wup364/pakku/utils/utypes"
+	"github.com/wup364/pakku/pkg/reflectutil"
+	"github.com/wup364/pakku/pkg/utypes"
 )
 
 const (

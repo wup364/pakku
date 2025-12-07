@@ -9,7 +9,7 @@
 
 |  名字 |  可重写接口类  |  描述  |
 | ------ | ------ | ------ |
-| AppConfig | `ipakku.IConfig` | 使用json格式存储的配置实现, 文件存放在启动目录下`./.conf/{appName}.json`中 |
+| AppConfig | `ipakku.IConfig` | 使用json格式存储的配置实现, 文件存放在启动目录下`.conf/{appName}.json`中 |
 | AppCache | `ipakku.ICache` | 使用map实现的本地内存缓存, 如需使用其他缓存机制, 如redis需要自己实现 |
 | AppEvent | `ipakku.IEvent` | 默认没有实现此接口, 需要自己实现, 如: kafka等 |
 | AppService | `-` | 默认实现了http服务和rpc服务, 不可重写, 但可选是否启用该模块 |
@@ -41,20 +41,20 @@ app := builder.
 // 获取内部的一个模块, 这里使用 AppService 用于开启一个服务
 // var service ipakku.AppService
 // if err := app.Modules().GetModules(&service); nil != err {
-// 	logs.Panicln(err)
+// 	logs.Panic(err)
 // }
 service := app.PakkuModules().GetAppService()
 
 // 设置一个静态页面路径
 if err := service.SetStaticDIR("/", "./", nil); nil != err {
-    logs.Panicln(err)
+    logs.Panic(err)
 }
 
 // 手工注册一个请求路径(可使用Controller接口批量注册)
 if err := service.Get("/hello", func(rw http.ResponseWriter, _ *http.Request) {
     rw.Write([]byte("hello!"))
 }); nil != err {
-    logs.Panicln(err)
+    logs.Panic(err)
 }
 
 // 启动服务

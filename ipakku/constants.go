@@ -15,16 +15,18 @@ const (
 
 // ModuleID 模块ID
 var ModuleID = moduleID{
-	AppConfig:  "AppConfig",
-	AppCache:   "AppCache",
-	AppEvent:   "AppEvent",
-	AppService: "AppService",
+	AppConfig:        "AppConfig",
+	AppCache:         "AppCache",
+	AppEvent:         "AppEvent",
+	AppService:       "AppService",
+	StaticPageLoader: "StaticPageLoader",
 }
 
 // moduleID 模块ID
 type moduleID struct {
-	AppConfig  string
-	AppCache   string
-	AppEvent   string
-	AppService string
+	AppConfig        string
+	AppCache         string
+	AppEvent         string
+	AppService       string
+	StaticPageLoader string
 }
